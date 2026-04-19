@@ -192,4 +192,4 @@ $client = new FlexOps([
 
 ## License
 
-Proprietary — FlexOps, LLC
+MIT © FlexOps, LLC. See [LICENSE](LICENSE) for full text.
