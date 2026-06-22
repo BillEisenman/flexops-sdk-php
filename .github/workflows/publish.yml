@@ -1,0 +1,47 @@
+name: Update Packagist
+
+# Notifies packagist.org to re-crawl flexops/sdk when a vX.Y.Z tag is pushed,
+# so a new release appears on Packagist immediately instead of on the periodic
+# crawl. (PHP has no upload step like NuGet/npm — Packagist reads tags straight
+# from this Git repo; this workflow just triggers that read.)
+#
+# One-time setup (REQUIRED before this works):
+#   1. Submit the package once at https://packagist.org/packages/submit using
+#      this repo URL: https://github.com/BillEisenman/flexops-sdk-php
+#   2. Add two repo secrets (Settings -> Secrets and variables -> Actions):
+#        PACKAGIST_USERNAME   — your packagist.org username
+#        PACKAGIST_API_TOKEN  — packagist.org -> Profile -> Show API Token
+#
+# Alternative: enable Packagist's GitHub integration (packagist.org connects
+# via OAuth and auto-updates on every push) — then this workflow is redundant
+# and can be deleted. The token approach here keeps the trigger explicit and
+# in-repo.
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  update-packagist:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Packagist update API
+        env:
+          PACKAGIST_USERNAME: ${{ secrets.PACKAGIST_USERNAME }}
+          PACKAGIST_API_TOKEN: ${{ secrets.PACKAGIST_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PACKAGIST_USERNAME:-}" ] || [ -z "${PACKAGIST_API_TOKEN:-}" ]; then
+            echo "::error::PACKAGIST_USERNAME / PACKAGIST_API_TOKEN secrets not set — see the workflow header for one-time setup."
+            exit 1
+          fi
+          curl -sSf -XPOST -H 'content-type:application/json' \
+            "https://packagist.org/api/update-package?username=${PACKAGIST_USERNAME}&apiToken=${PACKAGIST_API_TOKEN}" \
+            -d '{"repository":{"url":"https://github.com/BillEisenman/flexops-sdk-php"}}'
+          echo
+          echo "Packagist update requested for flexops/sdk"
