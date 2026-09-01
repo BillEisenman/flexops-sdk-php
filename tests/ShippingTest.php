@@ -20,29 +20,29 @@ class ShippingTest extends TestCase
     {
         ['client' => $client, 'mock' => $mock] = TestHelper::createClient();
         $mock->enqueueJson([
-            'success' => true,
-            'data' => [
-                ['carrier' => 'USPS', 'service' => 'Priority Mail', 'rate' => 8.50, 'currency' => 'USD', 'estimatedDays' => 2],
-                ['carrier' => 'UPS', 'service' => 'Ground', 'rate' => 12.30, 'currency' => 'USD', 'estimatedDays' => 5],
+            'currency' => 'USD',
+            'rates' => [
+                ['carrierCode' => 'USPS', 'serviceCode' => 'PRIORITY', 'rate' => 8.50, 'currency' => 'USD', 'estimatedDays' => 2],
+                ['carrierCode' => 'UPS', 'serviceCode' => 'GROUND', 'rate' => 12.30, 'currency' => 'USD', 'estimatedDays' => 5],
             ],
         ]);
 
-        $result = $client->shipping->getRates([
-            'fromZip' => '10001',
-            'toZip' => '90210',
-            'weight' => 16,
-            'weightUnit' => 'oz',
-        ]);
+        $request = [
+            'origin' => ['addressLine1' => '123 Main St', 'city' => 'New York', 'stateProvince' => 'NY', 'postalCode' => '10001'],
+            'destination' => ['addressLine1' => '456 Oak Ave', 'city' => 'Los Angeles', 'stateProvince' => 'CA', 'postalCode' => '90210'],
+            'package' => ['weight' => 16, 'weightUnit' => 'oz'],
+        ];
+        $result = $client->shipping->getRates($request);
 
-        $this->assertTrue($result['success']);
-        $this->assertCount(2, $result['data']);
-        $this->assertSame('USPS', $result['data'][0]['carrier']);
-        $this->assertSame(8.50, $result['data'][0]['rate']);
+        $this->assertCount(2, $result['rates']);
+        $this->assertSame('USPS', $result['rates'][0]['carrierCode']);
+        $this->assertSame(8.50, $result['rates'][0]['rate']);
 
         // Verify correct URL path
         $last = $mock->lastRequest();
-        $this->assertStringContainsString('/api/workspaces/ws-test-123/shipping/rates', $last['url']);
+        $this->assertStringContainsString('/api/shipping/rates', $last['url']);
         $this->assertSame('POST', $last['method']);
+        $this->assertSame($request, $last['body']);
     }
 
     // ---------------------------------------------------------------
@@ -122,7 +122,7 @@ class ShippingTest extends TestCase
             'data' => ['carrier' => 'USPS', 'service' => 'Ground Advantage', 'rate' => 5.25],
         ]);
 
-        $result = $client->shipping->getCheapestRate(['fromZip' => '10001', 'toZip' => '90210', 'weight' => 8]);
+        $result = $client->shipping->getCheapestRate(TestHelper::rateRequest());
 
         $this->assertSame(5.25, $result['data']['rate']);
 

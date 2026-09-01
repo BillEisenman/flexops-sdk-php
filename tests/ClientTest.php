@@ -22,7 +22,7 @@ class ClientTest extends TestCase
         ['client' => $client, 'mock' => $mock] = TestHelper::createClient(apiKey: 'sk_test_key');
         $mock->enqueueJson(['success' => true, 'data' => []]);
 
-        $client->shipping->getRates(['fromZip' => '10001', 'toZip' => '90210', 'weight' => 16]);
+        $client->shipping->getRates(TestHelper::rateRequest());
 
         $last = $mock->lastRequest();
         $this->assertNotNull($last);
@@ -40,7 +40,7 @@ class ClientTest extends TestCase
         );
         $mock->enqueueJson(['success' => true, 'data' => []]);
 
-        $client->shipping->getRates(['fromZip' => '10001', 'toZip' => '90210']);
+        $client->shipping->getRates(TestHelper::rateRequest());
 
         $last = $mock->lastRequest();
         $this->assertNotNull($last);
@@ -57,7 +57,7 @@ class ClientTest extends TestCase
         $client->setAccessToken('new_jwt_token');
         $mock->enqueueJson(['success' => true, 'data' => []]);
 
-        $client->shipping->getRates(['fromZip' => '10001', 'toZip' => '90210']);
+        $client->shipping->getRates(TestHelper::rateRequest());
 
         $last = $mock->lastRequest();
         $this->assertContains('Authorization: Bearer new_jwt_token', $last['headers']);
@@ -84,7 +84,7 @@ class ClientTest extends TestCase
         $client->setApiKey('sk_new_key');
         $mock->enqueueJson(['success' => true, 'data' => []]);
 
-        $client->shipping->getRates(['fromZip' => '10001', 'toZip' => '90210']);
+        $client->shipping->getRates(TestHelper::rateRequest());
 
         $last = $mock->lastRequest();
         $this->assertContains('X-Api-Key: sk_new_key', $last['headers']);
