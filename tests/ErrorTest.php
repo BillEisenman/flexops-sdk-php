@@ -25,7 +25,7 @@ class ErrorTest extends TestCase
         $mock->enqueueError(401, 'Invalid token');
 
         $this->expectException(FlexOpsAuthError::class);
-        $client->shipping->getRates(['fromZip' => '10001', 'toZip' => '90210']);
+        $client->shipping->getRates(TestHelper::rateRequest());
     }
 
     // ---------------------------------------------------------------
@@ -59,7 +59,7 @@ class ErrorTest extends TestCase
         }
 
         try {
-            $client->shipping->getRates(['fromZip' => '10001', 'toZip' => '90210']);
+            $client->shipping->getRates(TestHelper::rateRequest());
             $this->fail('Expected FlexOpsRateLimitError was not thrown');
         } catch (FlexOpsRateLimitError $e) {
             $this->assertSame(429, $e->statusCode);
@@ -81,7 +81,7 @@ class ErrorTest extends TestCase
         $mock->enqueueError(500, 'Internal Server Error');
         $mock->enqueueJson(['success' => true, 'data' => []]);
 
-        $result = $client->shipping->getRates(['fromZip' => '10001', 'toZip' => '90210']);
+        $result = $client->shipping->getRates(TestHelper::rateRequest());
 
         $this->assertTrue($result['success']);
         $this->assertCount(2, $mock->requests, 'Should have made 2 requests (initial + 1 retry)');

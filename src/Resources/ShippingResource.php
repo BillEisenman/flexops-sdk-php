@@ -7,9 +7,9 @@ class ShippingResource
 {
     public function __construct(private readonly HttpClient $http, private readonly \Closure $getWsId) {}
 
-    public function getRates(array $request): mixed { return $this->http->post($this->wsPath() . '/shipping/rates', $request); }
-    public function getCheapestRate(array $request): mixed { return $this->http->post($this->wsPath() . '/shipping/rates/cheapest', $request); }
-    public function getFastestRate(array $request): mixed { return $this->http->post($this->wsPath() . '/shipping/rates/fastest', $request); }
+    public function getRates(array $request): mixed { return $this->http->post('/api/shipping/rates', $request); }
+    public function getCheapestRate(array $request): mixed { return $this->http->post('/api/shipping/rates/cheapest', $request); }
+    public function getFastestRate(array $request): mixed { return $this->http->post('/api/shipping/rates/fastest', $request); }
     public function createLabel(array $request): mixed { return $this->http->post($this->wsPath() . '/shipping/labels', $request); }
     public function cancelLabel(string $labelId): mixed { return $this->http->delete($this->wsPath() . "/shipping/labels/{$labelId}"); }
     public function track(string $trackingNumber): mixed { return $this->http->get($this->wsPath() . "/shipping/track/{$trackingNumber}"); }

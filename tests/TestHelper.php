@@ -36,4 +36,13 @@ class TestHelper
 
         return ['client' => $client, 'mock' => $mock];
     }
+
+    public static function rateRequest(): array
+    {
+        return [
+            'origin' => ['addressLine1' => '123 Main St', 'city' => 'New York', 'stateProvince' => 'NY', 'postalCode' => '10001'],
+            'destination' => ['addressLine1' => '456 Oak Ave', 'city' => 'Los Angeles', 'stateProvince' => 'CA', 'postalCode' => '90210'],
+            'package' => ['weight' => 16, 'weightUnit' => 'oz'],
+        ];
+    }
 }
