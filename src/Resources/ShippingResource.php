@@ -10,7 +10,15 @@ class ShippingResource
     public function getRates(array $request): mixed { return $this->http->post('/api/shipping/rates', $request); }
     public function getCheapestRate(array $request): mixed { return $this->http->post('/api/shipping/rates/cheapest', $request); }
     public function getFastestRate(array $request): mixed { return $this->http->post('/api/shipping/rates/fastest', $request); }
-    public function createLabel(array $request): mixed { return $this->http->post($this->wsPath() . '/shipping/labels', $request); }
+    /** Returns a raw preview or label. Confirm explicitly and reuse the purchase key on retries. */
+    public function createLabel(array $request, ?string $idempotencyKey = null): mixed
+    {
+        if ($idempotencyKey !== null && preg_match('/[\r\n]/', $idempotencyKey)) {
+            throw new \InvalidArgumentException('Invalid idempotency key');
+        }
+        return $this->http->post($this->wsPath() . '/shipping/labels', $request,
+            headers: $idempotencyKey === null ? [] : ["Idempotency-Key: {$idempotencyKey}"]);
+    }
     public function cancelLabel(string $labelId): mixed { return $this->http->delete($this->wsPath() . "/shipping/labels/{$labelId}"); }
     public function track(string $trackingNumber): mixed { return $this->http->get($this->wsPath() . "/shipping/track/{$trackingNumber}"); }
     public function validateAddress(array $address): mixed { return $this->http->post($this->wsPath() . '/shipping/addresses/validate', $address); }
