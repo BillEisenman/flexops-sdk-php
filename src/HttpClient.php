@@ -49,9 +49,9 @@ class HttpClient
         return $this->request('GET', $path, query: $query);
     }
 
-    public function post(string $path, mixed $body = null, ?array $query = null): mixed
+    public function post(string $path, mixed $body = null, ?array $query = null, array $headers = []): mixed
     {
-        return $this->request('POST', $path, body: $body, query: $query);
+        return $this->request('POST', $path, body: $body, query: $query, headers: $headers);
     }
 
     public function put(string $path, mixed $body = null): mixed
@@ -69,7 +69,7 @@ class HttpClient
         return $this->request('DELETE', $path);
     }
 
-    private function request(string $method, string $path, mixed $body = null, ?array $query = null): mixed
+    private function request(string $method, string $path, mixed $body = null, ?array $query = null, array $headers = []): mixed
     {
         $url = $this->buildUrl($path, $query);
         $lastError = null;
@@ -79,7 +79,7 @@ class HttpClient
                 usleep((int)($this->calculateBackoff($attempt) * 1_000_000));
             }
 
-            $result = $this->executeRequest($method, $url, $this->buildHeaders(), $body);
+            $result = $this->executeRequest($method, $url, array_merge($this->buildHeaders(), $headers), $body);
 
             if ($result['error'] !== null) {
                 $lastError = new FlexOpsError($result['error'], 0, 'NETWORK_ERROR');
@@ -117,7 +117,7 @@ class HttpClient
             $error = new FlexOpsError(
                 $errorBody['message'] ?? "HTTP {$statusCode}",
                 $statusCode,
-                null,
+                $errorBody['errorCode'] ?? $errorBody['code'] ?? null,
                 $errorBody['errors'] ?? null
             );
 

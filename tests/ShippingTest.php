@@ -51,34 +51,53 @@ class ShippingTest extends TestCase
     public function testCreateLabelReturnsLabel(): void
     {
         ['client' => $client, 'mock' => $mock] = TestHelper::createClient();
-        $mock->enqueueJson([
-            'success' => true,
-            'data' => [
-                'labelId' => 'lbl_abc123',
-                'trackingNumber' => '9400111899223456789012',
-                'carrier' => 'USPS',
-                'service' => 'Priority Mail',
-                'labelFormat' => 'PDF',
-                'rate' => 8.50,
-                'createdAt' => '2026-04-01T00:00:00Z',
-            ],
-        ]);
+        $request = ['carrierCode' => 'USPS', 'serviceCode' => 'GROUND_ADVANTAGE',
+            'origin' => ['addressLine1' => '1 St'], 'destination' => ['addressLine1' => '2 St'],
+            'package' => ['weight' => 16], 'maximumPostageAmount' => 10.25];
+        $mock->enqueueJson(['status' => 'Preview', 'confirmationToken' => 'approval',
+            'quotedPostageAmount' => 8.5, 'maximumPostageAmount' => 10.25,
+            'currency' => 'USD', 'expiresAt' => '2026-09-19T00:05:00Z']);
+        $preview = $client->shipping->createLabel($request);
+        $this->assertSame('Preview', $preview['status']);
+        $this->assertCount(1, $mock->requests);
+        $this->assertSame($request, $mock->lastRequest()['body']);
+        $request['confirmationToken'] = $preview['confirmationToken'];
+        $mock->enqueueJson(['message' => 'temporary'], 503);
+        $mock->enqueueJson(['labelId' => 'lbl-001', 'carrierCode' => 'USPS'], 201);
+        $label = $client->shipping->createLabel($request, 'purchase-001');
+        $this->assertSame('lbl-001', $label['labelId']);
+        $this->assertCount(3, $mock->requests);
+        foreach (array_slice($mock->requests, 1) as $call) {
+            $this->assertContains('Idempotency-Key: purchase-001', $call['headers']);
+            $this->assertSame($request, $call['body']);
+        }
+        unset($request['confirmationToken']);
+        $mock->enqueueJson(['status' => 'Preview']);
+        $client->shipping->createLabel($request);
+        $this->assertNotContains('Idempotency-Key: purchase-001', $mock->lastRequest()['headers']);
+    }
 
-        $result = $client->shipping->createLabel([
-            'carrier' => 'USPS',
-            'service' => 'Priority Mail',
-            'fromAddress' => ['name' => 'Test', 'street1' => '1 St', 'city' => 'NY', 'state' => 'NY', 'zip' => '10001', 'country' => 'US'],
-            'toAddress' => ['name' => 'Recv', 'street1' => '2 St', 'city' => 'LA', 'state' => 'CA', 'zip' => '90210', 'country' => 'US'],
-            'parcel' => ['weight' => 16],
-        ]);
+    public function testLabelKeyCannotInjectHeaders(): void
+    {
+        ['client' => $client, 'mock' => $mock] = TestHelper::createClient();
+        $this->expectException(\InvalidArgumentException::class);
+        $client->shipping->createLabel([], "key\r\nInjected: header");
+    }
 
-        $this->assertTrue($result['success']);
-        $this->assertSame('lbl_abc123', $result['data']['labelId']);
-        $this->assertSame('9400111899223456789012', $result['data']['trackingNumber']);
-
-        $last = $mock->lastRequest();
-        $this->assertStringContainsString('/shipping/labels', $last['url']);
-        $this->assertSame('POST', $last['method']);
+    public function testLabelApprovalErrors(): void
+    {
+        foreach ([[400, 'ApprovalRequired'], [409, 'ApprovalExpired']] as [$status, $code]) {
+            ['client' => $client, 'mock' => $mock] = TestHelper::createClient();
+            $mock->enqueueJson(['errorCode' => $code, 'message' => $code], $status);
+            try {
+                $client->shipping->createLabel([]);
+                $this->fail('Expected approval error');
+            } catch (\FlexOps\FlexOpsError $error) {
+                $this->assertSame($status, $error->statusCode);
+                $this->assertSame($code, $error->errorCode);
+            }
+            $this->assertCount(1, $mock->requests);
+        }
     }
 
     // ---------------------------------------------------------------
