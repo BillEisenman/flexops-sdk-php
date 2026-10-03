@@ -86,7 +86,7 @@ class ShippingTest extends TestCase
 
     public function testLabelApprovalErrors(): void
     {
-        foreach ([[400, 'ApprovalRequired'], [409, 'ApprovalExpired']] as [$status, $code]) {
+        foreach ([[400, 'ApprovalRequired'], [409, 'ApprovalExpired'], [403, 'FeatureDisabled'], [409, 'OutcomeUnknown']] as [$status, $code]) {
             ['client' => $client, 'mock' => $mock] = TestHelper::createClient();
             $mock->enqueueJson(['errorCode' => $code, 'message' => $code], $status);
             try {
@@ -147,5 +147,21 @@ class ShippingTest extends TestCase
 
         $last = $mock->lastRequest();
         $this->assertStringContainsString('/shipping/rates/cheapest', $last['url']);
+    }
+
+    public function testInternationalCustomsContract(): void
+    {
+        ['client' => $client, 'mock' => $mock] = TestHelper::createClient();
+        $request = json_decode(file_get_contents(__DIR__ . '/../examples/international-label.json'), true);
+        $mock->enqueueJson(['status' => 'Preview', 'confirmationToken' => 'approved']);
+        $preview = $client->shipping->createLabel($request);
+        $this->assertSame('Preview', $preview['status']);
+        $this->assertCount(1, $mock->requests);
+        $this->assertSame($request, $mock->lastRequest()['body']);
+        $request['confirmationToken'] = $preview['confirmationToken'];
+        $mock->enqueueJson(['labelId' => 'intl-1', 'currency' => 'USD'], 201);
+        $client->shipping->createLabel($request, 'international-1');
+        $this->assertSame($request, $mock->lastRequest()['body']);
+        $this->assertContains('Idempotency-Key: international-1', $mock->lastRequest()['headers']);
     }
 }
