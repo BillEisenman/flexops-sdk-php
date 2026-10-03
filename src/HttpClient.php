@@ -102,9 +102,6 @@ class HttpClient
                 throw new FlexOpsAuthError();
             }
 
-            if ($statusCode === 403) {
-                throw new FlexOpsError('Access denied. Check your plan tier and feature entitlements.', 403, 'FORBIDDEN');
-            }
 
             if ($statusCode === 429) {
                 $retryAfter = (int)$this->getHeader($responseHeaders, 'retry-after');
@@ -117,9 +114,11 @@ class HttpClient
             $error = new FlexOpsError(
                 $errorBody['message'] ?? "HTTP {$statusCode}",
                 $statusCode,
-                $errorBody['errorCode'] ?? $errorBody['code'] ?? null,
+                $errorBody['errorCode'] ?? $errorBody['code'] ?? ($statusCode === 403 ? 'FORBIDDEN' : null),
                 $errorBody['errors'] ?? null
             );
+
+            if ($statusCode === 403) throw $error;
 
             if (in_array($statusCode, self::RETRYABLE_STATUSES)) {
                 $lastError = $error;
