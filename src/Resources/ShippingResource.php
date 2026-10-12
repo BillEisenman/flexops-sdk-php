@@ -23,8 +23,18 @@ class ShippingResource
         return $this->http->post('/api/shipping/labels', $request,
             headers: $idempotencyKey === null ? [] : ["Idempotency-Key: {$idempotencyKey}"]);
     }
-    public function cancelLabel(string $labelId): mixed { return $this->http->delete($this->wsPath() . "/shipping/labels/{$labelId}"); }
-    public function track(string $trackingNumber): mixed { return $this->http->get($this->wsPath() . "/shipping/track/{$trackingNumber}"); }
+    /**
+     * Cancel (void) a label. The Gateway requires the carrier code (for example `USPS`); it is
+     * optional here only so older call sites fail with a clear error before any request.
+     */
+    public function cancelLabel(string $labelId, ?string $carrierCode = null): mixed
+    {
+        if ($carrierCode === null || $carrierCode === '') {
+            throw new \InvalidArgumentException('carrierCode is required to cancel a label (for example USPS).');
+        }
+        return $this->http->delete('/api/shipping/labels/' . rawurlencode($labelId) . '?carrierCode=' . rawurlencode($carrierCode));
+    }
+    public function track(string $trackingNumber): mixed { return $this->http->get('/api/shipping/track/' . rawurlencode($trackingNumber)); }
     /**
      * Sends the Gateway AddressValidationRequest (`['address' => [...]]`). A legacy
      * `street1`/`state`/`zip` address is mapped to the Gateway field names.
@@ -38,11 +48,11 @@ class ShippingResource
     public function previewBatch(array $request): mixed { return $this->http->post($this->wsPath() . '/labels/batch/preview', $request); }
     public function getBatchStatus(string $jobId): mixed { return $this->http->get($this->wsPath() . "/labels/batch/{$jobId}"); }
     public function downloadBatchLabel(string $jobId, string $itemId): mixed { return $this->http->get($this->wsPath() . "/labels/batch/{$jobId}/items/{$itemId}/label"); }
-    public function getCarriers(): mixed { return $this->http->get($this->wsPath() . '/shipping/carriers'); }
+    public function getCarriers(): mixed { return $this->http->get('/api/shipping/carriers'); }
 
-    public function getRecommendations(array $request): mixed { return $this->http->post($this->wsPath() . '/shipping/recommendations', $request); }
-    public function predictDelivery(array $request): mixed { return $this->http->post($this->wsPath() . '/shipping/predictions/delivery', $request); }
-    public function getSavings(): mixed { return $this->http->get($this->wsPath() . '/shipping/savings'); }
+    public function getRecommendations(array $request): mixed { return $this->http->post('/api/shipping/recommendations', $request); }
+    public function predictDelivery(array $request): mixed { return $this->http->post('/api/shipping/predictions/delivery', $request); }
+    public function getSavings(): mixed { return $this->http->get('/api/shipping/savings'); }
 
     private function wsPath(): string { return '/api/workspaces/' . ($this->getWsId)(); }
 
