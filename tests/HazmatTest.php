@@ -74,6 +74,25 @@ class HazmatTest extends TestCase
         $this->assertSame(['hazmatClassification' => 0], self::wire($mock->requests[1]));
     }
 
+    /** FlexOpsGateway#672: the package weight and size reach the wire as the Gateway's fields. */
+    public function testReturnLabelSendsThePackageWeightAndSize(): void
+    {
+        ['client' => $client, 'mock' => $mock] = TestHelper::createClient();
+        $client->returns->generateLabel('RMA-1', [
+            'weightOz' => 16, 'lengthIn' => 10, 'widthIn' => 8, 'heightIn' => 4,
+            'hazmatClassification' => HazmatClassification::None,
+        ]);
+        $client->returns->generateLabel('RMA-2', []);
+
+        $this->assertSame('http://localhost/api/workspaces/ws-test-123/returns/RMA-1/label', $mock->requests[0]['url']);
+        $this->assertSame(
+            ['weightOz' => 16, 'lengthIn' => 10, 'widthIn' => 8, 'heightIn' => 4, 'hazmatClassification' => 0],
+            self::wire($mock->requests[0]),
+        );
+        // An empty options array is still a JSON object, never `[]`.
+        $this->assertSame('{}', json_encode($mock->requests[1]['body']));
+    }
+
     public function testValidateAddressSendsTheGatewayRequest(): void
     {
         ['client' => $client, 'mock' => $mock] = TestHelper::createClient();

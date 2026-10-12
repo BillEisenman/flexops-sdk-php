@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `FlexOps\HazmatClassification` (int-backed enum, the Gateway numbers; `json_encode` writes the number). Put `'hazmatClassification' => HazmatClassification::None` (or a class) in a label or rate request; it is sent only when you set it, and the SDK never defaults it. Labels without an `orderId` must declare it.
 - `returns->generateLabel($returnId, $hazmatClassification)` sends a declared HAZMAT class with a return label.
+- `returns->generateLabel($returnId, [...])` also takes an options array with the package (`weightOz`, `lengthIn`, `widthIn`, `heightIn`) plus `carrierCode`, `serviceType`, `paymentConfirmed` and `hazmatClassification`. The Gateway needs the package: a workspace with no default shipping preset gets a 400 (`PackageMeasurementsRequired`) naming the missing fields when it is left out (Gateway #672).
 
 ### Fixed
 - `returns->generateLabel($returnId)` sends `{}`; it sent no body, which the Gateway return-label route refuses with 400.
