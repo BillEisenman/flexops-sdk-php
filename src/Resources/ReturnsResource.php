@@ -19,7 +19,8 @@ class ReturnsResource
     /** `$hazmatClassification` declares what the return holds; it is sent only when set. */
     public function generateLabel(string $returnId, ?\FlexOps\HazmatClassification $hazmatClassification = null): mixed
     {
-        $body = $hazmatClassification === null ? null : ['hazmatClassification' => $hazmatClassification];
+        // Always a JSON object: the Gateway binds a required GenerateReturnLabelRequest body and refuses an empty one with 400.
+        $body = $hazmatClassification === null ? new \stdClass() : ['hazmatClassification' => $hazmatClassification];
         return $this->http->post($this->wsPath() . "/returns/{$returnId}/label", $body);
     }
     public function markReceived(string $returnId, array $items): mixed { return $this->http->post($this->wsPath() . "/returns/{$returnId}/receive", ['items' => $items]); }

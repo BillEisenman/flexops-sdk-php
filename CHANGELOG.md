@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `returns->generateLabel($returnId, $hazmatClassification)` sends a declared HAZMAT class with a return label.
 
 ### Fixed
+- `returns->generateLabel($returnId)` sends `{}`; it sent no body, which the Gateway return-label route refuses with 400.
 - `shipping->createLabel()` posts to the Gateway route `/api/shipping/labels`; it used a workspace-scoped path the Gateway does not serve.
 - `shipping->track`, `cancelLabel`, `getCarriers`, `getRecommendations`, `predictDelivery` and `getSavings` use the Gateway `/api/shipping/...` routes instead of workspace-scoped paths the Gateway does not serve. `cancelLabel($labelId, $carrierCode)` now needs the carrier code the Gateway requires; without it the SDK throws `InvalidArgumentException` before any request.
 - `shipping->validateAddress()` posts the Gateway `{"address": {...}}` request to `/api/shipping/addresses/validate`, and maps a legacy `street1`/`state`/`zip` address to the Gateway field names.

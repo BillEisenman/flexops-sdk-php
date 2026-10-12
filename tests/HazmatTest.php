@@ -69,7 +69,8 @@ class HazmatTest extends TestCase
         $client->returns->generateLabel('RMA-1', HazmatClassification::None);
 
         $this->assertSame('http://localhost/api/workspaces/ws-test-123/returns/RMA-1/label', $mock->requests[1]['url']);
-        $this->assertNull(self::wire($mock->requests[0]));
+        // The Gateway binds a required GenerateReturnLabelRequest body; {} takes its defaults.
+        $this->assertSame('{}', json_encode($mock->requests[0]['body']));
         $this->assertSame(['hazmatClassification' => 0], self::wire($mock->requests[1]));
     }
 
