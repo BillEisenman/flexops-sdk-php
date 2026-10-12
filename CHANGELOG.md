@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `FlexOps\HazmatClassification` (int-backed enum, the Gateway numbers; `json_encode` writes the number). Put `'hazmatClassification' => HazmatClassification::None` (or a class) in a label or rate request; it is sent only when you set it, and the SDK never defaults it. Labels without an `orderId` must declare it.
+- `returns->generateLabel($returnId, $hazmatClassification)` sends a declared HAZMAT class with a return label.
+
+### Fixed
+- `shipping->createLabel()` posts to the Gateway route `/api/shipping/labels`; it used a workspace-scoped path the Gateway does not serve.
+- `shipping->validateAddress()` posts the Gateway `{"address": {...}}` request to `/api/shipping/addresses/validate`, and maps a legacy `street1`/`state`/`zip` address to the Gateway field names.
+
 ## [1.1.0] - 2026-09-19
 
 ### Bounded label purchase support
