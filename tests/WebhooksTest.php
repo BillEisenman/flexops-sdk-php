@@ -12,6 +12,8 @@ namespace FlexOps\Tests;
 use FlexOps\FlexOpsError;
 use FlexOps\FlexOpsWebhookSignatureError;
 use FlexOps\Resources\WebhooksResource;
+use FlexOps\WebhookEventType;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 class WebhooksTest extends TestCase
@@ -163,26 +165,145 @@ class WebhooksTest extends TestCase
     }
 
     // ---------------------------------------------------------------
-    // 7. Create webhook calls correct endpoint
+    // 7. Subscriptions send events as the Gateway's comma-separated
+    //    eventTypes (no spaces); the Gateway ignores an `events` field
+    //    and subscribes to every event.
     // ---------------------------------------------------------------
-    public function testCreateWebhookPostsToCorrectPath(): void
+    private static function wireJson(?array $request): string
+    {
+        return json_encode($request['body']);
+    }
+
+    public function testCreateSendsEventsAsCommaSeparatedEventTypes(): void
     {
         ['client' => $client, 'mock' => $mock] = TestHelper::createClient();
         $mock->enqueueJson([
             'success' => true,
-            'data' => ['id' => 'wh-001', 'url' => 'https://example.com/hook', 'events' => ['label.created']],
+            'data' => ['id' => 'wh-001', 'url' => 'https://example.com/hook', 'eventTypes' => 'LabelCreated,BatchCompleted'],
         ]);
 
         $result = $client->webhooks->create([
             'url' => 'https://example.com/hook',
-            'events' => ['label.created'],
+            'events' => [WebhookEventType::LabelCreated, 'BatchCompleted', WebhookEventType::LabelCreated],
         ]);
 
         $this->assertTrue($result['success']);
         $this->assertSame('wh-001', $result['data']['id']);
 
         $last = $mock->lastRequest();
-        $this->assertStringContainsString('/api/workspaces/ws-test-123/webhooks', $last['url']);
+        $this->assertSame('http://localhost/api/workspaces/ws-test-123/webhooks', $last['url']);
         $this->assertSame('POST', $last['method']);
+        $this->assertSame('{"url":"https:\/\/example.com\/hook","eventTypes":"LabelCreated,BatchCompleted"}', self::wireJson($last));
+    }
+
+    public function testCreateWithoutEventsReceivesEveryEvent(): void
+    {
+        ['client' => $client, 'mock' => $mock] = TestHelper::createClient();
+
+        $client->webhooks->create(['url' => 'https://example.com/hook', 'description' => 'orders']);
+
+        $this->assertSame('{"url":"https:\/\/example.com\/hook","description":"orders"}', self::wireJson($mock->lastRequest()));
+    }
+
+    public function testCreateSendsAnExplicitEventTypesStringAsIs(): void
+    {
+        ['client' => $client, 'mock' => $mock] = TestHelper::createClient();
+
+        $client->webhooks->create(['url' => 'https://example.com/hook', 'eventTypes' => 'LabelCreated,TrackingUpdated']);
+
+        $this->assertSame('{"url":"https:\/\/example.com\/hook","eventTypes":"LabelCreated,TrackingUpdated"}', self::wireJson($mock->lastRequest()));
+    }
+
+    public function testUpdateSendsEventsAsEventTypes(): void
+    {
+        ['client' => $client, 'mock' => $mock] = TestHelper::createClient();
+
+        $client->webhooks->update('wh-001', ['events' => [WebhookEventType::LabelCanceled], 'status' => 'Active']);
+
+        $last = $mock->lastRequest();
+        $this->assertSame('http://localhost/api/workspaces/ws-test-123/webhooks/wh-001', $last['url']);
+        $this->assertSame('PUT', $last['method']);
+        $this->assertSame('{"eventTypes":"LabelCanceled","status":"Active"}', self::wireJson($last));
+    }
+
+    public function testUpdateWithoutEventsLeavesTheSubscribedEventsAlone(): void
+    {
+        ['client' => $client, 'mock' => $mock] = TestHelper::createClient();
+
+        $client->webhooks->update('wh-001', ['status' => 'Paused']);
+
+        $this->assertSame('{"status":"Paused"}', self::wireJson($mock->lastRequest()));
+    }
+
+    /** @return array<string, array{mixed}> */
+    public static function invalidEvents(): array
+    {
+        return [
+            'dotted name' => [['label.created']],
+            'name FlexOps never sends' => [['LabelCreated', 'ShipmentCreated']],
+            'wrong case' => [['labelcreated']],
+            'empty list' => [[]],
+            'single string' => ['LabelCreated'],
+            'comma-joined string' => ['LabelCreated,BatchCompleted'],
+            'non-string element' => [[42]],
+        ];
+    }
+
+    #[DataProvider('invalidEvents')]
+    public function testCreateRefusesInvalidEventsWithoutCallingTheApi(mixed $events): void
+    {
+        ['client' => $client, 'mock' => $mock] = TestHelper::createClient();
+
+        try {
+            $client->webhooks->create(['url' => 'https://example.com/hook', 'events' => $events]);
+            $this->fail('expected InvalidArgumentException');
+        } catch (\InvalidArgumentException) {
+            $this->assertSame([], $mock->requests);
+        }
+    }
+
+    #[DataProvider('invalidEvents')]
+    public function testUpdateRefusesInvalidEventsWithoutCallingTheApi(mixed $events): void
+    {
+        ['client' => $client, 'mock' => $mock] = TestHelper::createClient();
+
+        try {
+            $client->webhooks->update('wh-001', ['events' => $events]);
+            $this->fail('expected InvalidArgumentException');
+        } catch (\InvalidArgumentException) {
+            $this->assertSame([], $mock->requests);
+        }
+    }
+
+    public function testUnknownEventMessageNamesTheEventsFlexOpsSends(): void
+    {
+        ['client' => $client] = TestHelper::createClient();
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Unknown webhook event: label.created. FlexOps sends LabelCreated, LabelCanceled, BatchCompleted, TrackingUpdated, TrackingDelivered.');
+        $client->webhooks->create(['url' => 'https://example.com/hook', 'events' => ['label.created']]);
+    }
+
+    public function testEventsAndEventTypesTogetherAreRefused(): void
+    {
+        ['client' => $client, 'mock' => $mock] = TestHelper::createClient();
+
+        try {
+            $client->webhooks->create(['url' => 'https://example.com/hook', 'events' => ['LabelCreated'], 'eventTypes' => '*']);
+            $this->fail('expected InvalidArgumentException');
+        } catch (\InvalidArgumentException) {
+            $this->assertSame([], $mock->requests);
+        }
+    }
+
+    public function testEventTypeValuesAreTheNamesTheGatewaySends(): void
+    {
+        $this->assertSame(
+            ['LabelCreated', 'LabelCanceled', 'BatchCompleted', 'TrackingUpdated', 'TrackingDelivered'],
+            array_map(fn (WebhookEventType $e) => $e->value, WebhookEventType::cases()),
+        );
+        foreach (WebhookEventType::cases() as $case) {
+            $this->assertSame($case->name, $case->value);
+        }
     }
 }
