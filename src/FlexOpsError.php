@@ -32,6 +32,19 @@ class FlexOpsAuthError extends FlexOpsError
     }
 }
 
+/**
+ * Thrown by WebhooksResource::verifySignatureOrFail() when a webhook delivery is not
+ * authentic or not fresh. $errorCode says why, for example "WEBHOOK_SIGNATURE_MISMATCH"
+ * or "WEBHOOK_TIMESTAMP_OUTSIDE_TOLERANCE".
+ */
+class FlexOpsWebhookSignatureError extends FlexOpsError
+{
+    public function __construct(string $message, string $errorCode)
+    {
+        parent::__construct($message, 0, $errorCode);
+    }
+}
+
 class FlexOpsRateLimitError extends FlexOpsError
 {
     public readonly int $retryAfter;

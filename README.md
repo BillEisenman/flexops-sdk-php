@@ -127,15 +127,39 @@ $shipment = $client->carriers->dhl->createShipment([...]);
 
 ## Webhook verification
 
+FlexOps signs each delivery with HMAC-SHA256 over `{X-FlexOps-Timestamp}.{raw body}`, keyed with your subscription secret (`whsec_...`, used as-is), and sends it as `X-FlexOps-Signature: sha256=<hex>`. Verify the raw body before you decode it.
+
 ```php
 use FlexOps\Resources\WebhooksResource;
 
+$payload = file_get_contents('php://input');
+
 $valid = WebhooksResource::verifySignature(
-    payload:   file_get_contents('php://input'),
-    signature: $_SERVER['HTTP_X_FLEXOPS_SIGNATURE'],
-    secret:    'whsec_...'
+    payload:   $payload,
+    signature: $_SERVER['HTTP_X_FLEXOPS_SIGNATURE'] ?? null, // "sha256=..."
+    timestamp: $_SERVER['HTTP_X_FLEXOPS_TIMESTAMP'] ?? null, // Unix seconds
+    secret:    (string) getenv('FLEXOPS_WEBHOOK_SECRET'),   // "whsec_..."
 );
+if (!$valid) {
+    http_response_code(401);
+    exit;
+}
+
+// The body is the event data itself (no type/data envelope).
+// The event name is in a header; test events send "test".
+$data = json_decode($payload, true);
+switch ($_SERVER['HTTP_X_FLEXOPS_EVENT'] ?? '') {
+    case 'test':
+        // $data: ['type' => 'test', 'message' => '...', 'timestamp' => '...', 'subscriptionId' => '...']
+        break;
+    case 'TrackingUpdated':
+        // $data['trackingNumber'], $data['status'], ...
+        break;
+}
+http_response_code(200);
 ```
+
+Deliveries whose timestamp is more than 300 seconds from your clock (either way) are rejected to limit replays; pass `tolerance:` (seconds) to change that. `WebhooksResource::verifySignatureOrFail()` takes the same arguments and throws `FlexOps\FlexOpsWebhookSignatureError` instead of returning `false`; its `errorCode` says why (`WEBHOOK_SIGNATURE_MISMATCH`, `WEBHOOK_TIMESTAMP_OUTSIDE_TOLERANCE`, `WEBHOOK_INVALID_TIMESTAMP`, `WEBHOOK_MISSING_SIGNATURE`, `WEBHOOK_MISSING_SECRET`).
 
 ## Curl quickstart
 
