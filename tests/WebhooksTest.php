@@ -196,6 +196,47 @@ class WebhooksTest extends TestCase
         $this->assertSame('{"url":"https:\/\/example.com\/hook","eventTypes":"LabelCreated,BatchCompleted"}', self::wireJson($last));
     }
 
+    // The Gateway create route answers 201 with the bare WebhookSubscriptionCreatedDto
+    // (no ApiResponse envelope); every other webhook route wraps its result.
+    private const CREATED = [
+        'id' => 'b3c1f6a2-0000-4000-8000-000000000001',
+        'url' => 'https://example.com/hook',
+        'description' => null,
+        'eventTypes' => 'LabelCreated',
+        'status' => 'Active',
+        'consecutiveFailures' => 0,
+        'createdAt' => '2026-10-16T12:00:00Z',
+        'updatedAt' => null,
+        'secret' => 'whsec_test_not_a_real_secret',
+    ];
+
+    public function testCreateReturnsTheSecretFromABare201Body(): void
+    {
+        ['client' => $client, 'mock' => $mock] = TestHelper::createClient();
+        $mock->enqueueJson(self::CREATED, 201);
+
+        $result = $client->webhooks->create(['url' => 'https://example.com/hook', 'events' => [WebhookEventType::LabelCreated]]);
+
+        $this->assertTrue($result['success']);
+        $this->assertSame(self::CREATED, $result['data']);
+        $this->assertSame('whsec_test_not_a_real_secret', $result['data']['secret']);
+        // Earlier releases returned the bare body; its fields stay readable at the top level.
+        $this->assertSame('whsec_test_not_a_real_secret', $result['secret']);
+        $this->assertSame(self::CREATED['id'], $result['id']);
+    }
+
+    public function testCreateReturnsAWrappedBodyUnchanged(): void
+    {
+        ['client' => $client, 'mock' => $mock] = TestHelper::createClient();
+        $wrapped = ['success' => true, 'message' => null, 'data' => self::CREATED, 'errors' => null, 'errorCode' => null];
+        $mock->enqueueJson($wrapped, 201);
+
+        $result = $client->webhooks->create(['url' => 'https://example.com/hook']);
+
+        $this->assertSame($wrapped, $result);
+        $this->assertSame('whsec_test_not_a_real_secret', $result['data']['secret']);
+    }
+
     public function testCreateWithoutEventsReceivesEveryEvent(): void
     {
         ['client' => $client, 'mock' => $mock] = TestHelper::createClient();

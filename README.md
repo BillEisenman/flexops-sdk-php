@@ -135,13 +135,15 @@ $webhook = $client->webhooks->create([
     'url'    => 'https://your-app.com/webhooks/flexops',
     'events' => [WebhookEventType::LabelCreated, WebhookEventType::LabelCanceled, WebhookEventType::BatchCompleted],
 ]);
-$signingSecret = $webhook['data']['secret']; // returned only on create; store it
+$signingSecret = $webhook['data']['secret']; // "whsec_...", returned only on create; store it
 
 // 'events' replaces the subscribed events; leave it out to keep them.
 $client->webhooks->update($webhook['data']['id'], ['events' => [WebhookEventType::LabelCreated], 'status' => 'Active']);
 ```
 
 FlexOps sends these events, named exactly as below. Names are PascalCase and matched exactly, so a name like `label.created` would never match. `create()` and `update()` send `events` as the Gateway's comma-separated `eventTypes`, and throw `InvalidArgumentException`, without calling the API, for an empty list or a name FlexOps never sends.
+
+The Gateway answers `create` with the bare subscription (`201 Created`, no envelope); `create()` returns it as `['success' => true, 'data' => $subscription]` like the other webhook calls, and keeps the subscription fields (`id`, `secret`, ...) at the top level too.
 
 | Event | Sent when |
 |---|---|

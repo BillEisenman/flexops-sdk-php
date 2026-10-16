@@ -17,10 +17,16 @@ class WebhooksResource
      *
      * $request takes `url`, `description` and `events`, a list of WebhookEventType cases (or
      * their exact names) that is sent as the Gateway's comma-separated `eventTypes`. Leave
-     * `events` out to receive every event. The response's `data.secret` (`whsec_...`) is
-     * returned only here; store it to verify deliveries.
+     * `events` out to receive every event.
      *
      * An explicit `eventTypes` string is sent as-is and is not checked.
+     *
+     * Returns `['success' => true, 'data' => $subscription]`, like the other webhook calls.
+     * `$result['data']['secret']` is the `whsec_...` signing secret, returned only here; store it
+     * to verify deliveries. The Gateway answers this route with the bare subscription (201, no
+     * envelope), so the SDK wraps it, and also keeps the subscription fields (`id`, `secret`, ...)
+     * at the top level, where earlier releases returned them. A body that is already wrapped is
+     * returned unchanged.
      *
      * @param array{url: string, description?: string, events?: list<WebhookEventType|string>, eventTypes?: string} $request
      *
@@ -28,7 +34,14 @@ class WebhooksResource
      *                                   sends (such as `label.created`), or is given with `eventTypes`.
      *                                   No request is sent.
      */
-    public function create(array $request): mixed { return $this->http->post($this->wsPath() . '/webhooks', self::toWireRequest($request)); }
+    public function create(array $request): mixed
+    {
+        $body = $this->http->post($this->wsPath() . '/webhooks', self::toWireRequest($request));
+        if (!is_array($body) || array_key_exists('success', $body) || array_key_exists('data', $body)) {
+            return $body;
+        }
+        return ['success' => true, 'data' => $body] + $body;
+    }
 
     /**
      * Updates a webhook subscription.
