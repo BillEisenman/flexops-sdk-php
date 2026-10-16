@@ -125,6 +125,34 @@ $info = $client->carriers->ups->track(['trackingNumber' => '1Z999AA10123456784']
 $shipment = $client->carriers->dhl->createShipment([...]);
 ```
 
+## Webhook subscriptions
+
+```php
+use FlexOps\WebhookEventType;
+
+// Leave 'events' out to receive every event.
+$webhook = $client->webhooks->create([
+    'url'    => 'https://your-app.com/webhooks/flexops',
+    'events' => [WebhookEventType::LabelCreated, WebhookEventType::LabelCanceled, WebhookEventType::BatchCompleted],
+]);
+$signingSecret = $webhook['data']['secret']; // "whsec_...", returned only on create; store it
+
+// 'events' replaces the subscribed events; leave it out to keep them.
+$client->webhooks->update($webhook['data']['id'], ['events' => [WebhookEventType::LabelCreated], 'status' => 'Active']);
+```
+
+FlexOps sends these events, named exactly as below. Names are PascalCase and matched exactly, so a name like `label.created` would never match. `create()` and `update()` send `events` as the Gateway's comma-separated `eventTypes`, and throw `InvalidArgumentException`, without calling the API, for an empty list or a name FlexOps never sends.
+
+The Gateway answers `create` with the bare subscription (`201 Created`, no envelope); `create()` returns it as `['success' => true, 'data' => $subscription]` like the other webhook calls, and keeps the subscription fields (`id`, `secret`, ...) at the top level too.
+
+| Event | Sent when |
+|---|---|
+| `LabelCreated` | A live label is purchased (sandbox labels send nothing) |
+| `LabelCanceled` | A live label is voided |
+| `BatchCompleted` | A batch label job finishes |
+| `TrackingUpdated` | A USPS tracking scan arrives (USPS push-tracking pilot workspaces only) |
+| `TrackingDelivered` | A USPS package is delivered (USPS push-tracking pilot workspaces only) |
+
 ## Webhook verification
 
 FlexOps signs each delivery with HMAC-SHA256 over `{X-FlexOps-Timestamp}.{raw body}`, keyed with your subscription secret (`whsec_...`, used as-is), and sends it as `X-FlexOps-Signature: sha256=<hex>`. Verify the raw body before you decode it.

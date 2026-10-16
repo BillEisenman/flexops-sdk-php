@@ -3,6 +3,7 @@ namespace FlexOps\Resources;
 
 use FlexOps\FlexOpsWebhookSignatureError;
 use FlexOps\HttpClient;
+use FlexOps\WebhookEventType;
 
 class WebhooksResource
 {
@@ -10,8 +11,51 @@ class WebhooksResource
 
     public function list(): mixed { return $this->http->get($this->wsPath() . '/webhooks'); }
     public function get(string $webhookId): mixed { return $this->http->get($this->wsPath() . "/webhooks/{$webhookId}"); }
-    public function create(array $request): mixed { return $this->http->post($this->wsPath() . '/webhooks', $request); }
-    public function update(string $webhookId, array $data): mixed { return $this->http->put($this->wsPath() . "/webhooks/{$webhookId}", $data); }
+
+    /**
+     * Creates a webhook subscription.
+     *
+     * $request takes `url`, `description` and `events`, a list of WebhookEventType cases (or
+     * their exact names) that is sent as the Gateway's comma-separated `eventTypes`. Leave
+     * `events` out to receive every event.
+     *
+     * An explicit `eventTypes` string is sent as-is and is not checked.
+     *
+     * Returns `['success' => true, 'data' => $subscription]`, like the other webhook calls.
+     * `$result['data']['secret']` is the `whsec_...` signing secret, returned only here; store it
+     * to verify deliveries. The Gateway answers this route with the bare subscription (201, no
+     * envelope), so the SDK wraps it, and also keeps the subscription fields (`id`, `secret`, ...)
+     * at the top level, where earlier releases returned them. A body that is already wrapped is
+     * returned unchanged.
+     *
+     * @param array{url: string, description?: string, events?: list<WebhookEventType|string>, eventTypes?: string} $request
+     *
+     * @throws \InvalidArgumentException `events` is empty, is not a list, names an event FlexOps never
+     *                                   sends (such as `label.created`), or is given with `eventTypes`.
+     *                                   No request is sent.
+     */
+    public function create(array $request): mixed
+    {
+        $body = $this->http->post($this->wsPath() . '/webhooks', self::toWireRequest($request));
+        if (!is_array($body) || array_key_exists('success', $body) || array_key_exists('data', $body)) {
+            return $body;
+        }
+        return ['success' => true, 'data' => $body] + $body;
+    }
+
+    /**
+     * Updates a webhook subscription.
+     *
+     * $data takes `url`, `description`, `status` (`Active`, `Paused` or `Disabled`) and `events`,
+     * a list of WebhookEventType cases (or their exact names) that replaces the subscribed events
+     * and is sent as `eventTypes`. Leave `events` out to keep the current events.
+     *
+     * @param array{url?: string, description?: string, status?: string, events?: list<WebhookEventType|string>, eventTypes?: string} $data
+     *
+     * @throws \InvalidArgumentException As for create(). No request is sent.
+     */
+    public function update(string $webhookId, array $data): mixed { return $this->http->put($this->wsPath() . "/webhooks/{$webhookId}", self::toWireRequest($data)); }
+
     public function delete(string $webhookId): mixed { return $this->http->delete($this->wsPath() . "/webhooks/{$webhookId}"); }
     public function rotateSecret(string $webhookId): mixed { return $this->http->post($this->wsPath() . "/webhooks/{$webhookId}/rotate-secret"); }
     public function listDeliveryLogs(string $webhookId): mixed { return $this->http->get($this->wsPath() . "/webhooks/{$webhookId}/deliveries"); }
@@ -90,6 +134,54 @@ class WebhooksResource
         if (!hash_equals($expected, $received)) {
             throw new FlexOpsWebhookSignatureError('Webhook signature does not match', 'WEBHOOK_SIGNATURE_MISMATCH');
         }
+    }
+
+    /**
+     * The Gateway reads a comma-separated `eventTypes` string, ignores an `events` field (so the
+     * subscription receives every event), and matches each name exactly. A name it never sends
+     * would leave the subscription silent, so it is refused here instead.
+     */
+    private static function toWireRequest(array $request): array
+    {
+        if (!array_key_exists('events', $request)) {
+            return $request;
+        }
+        if (array_key_exists('eventTypes', $request)) {
+            throw new \InvalidArgumentException('Pass events or eventTypes, not both.');
+        }
+
+        $events = $request['events'];
+        if (!is_array($events) || !array_is_list($events)) {
+            throw new \InvalidArgumentException('events must be a list of WebhookEventType cases or event names.');
+        }
+        if ($events === []) {
+            throw new \InvalidArgumentException('events must name at least one event; leave it out to receive every event.');
+        }
+
+        $names = [];
+        $unknown = [];
+        foreach ($events as $event) {
+            $name = $event instanceof WebhookEventType ? $event->value : $event;
+            if (!is_string($name) || WebhookEventType::tryFrom($name) === null) {
+                $unknown[] = is_string($name) ? $name : get_debug_type($name);
+            } elseif (!in_array($name, $names, true)) {
+                $names[] = $name;
+            }
+        }
+        if ($unknown !== []) {
+            $known = implode(', ', array_map(fn (WebhookEventType $e) => $e->value, WebhookEventType::cases()));
+            throw new \InvalidArgumentException('Unknown webhook event: ' . implode(', ', $unknown) . ". FlexOps sends {$known}.");
+        }
+
+        $wire = [];
+        foreach ($request as $key => $value) {
+            if ($key === 'events') {
+                $wire['eventTypes'] = implode(',', $names);
+            } else {
+                $wire[$key] = $value;
+            }
+        }
+        return $wire;
     }
 
     private function wsPath(): string { return '/api/workspaces/' . ($this->getWsId)(); }
