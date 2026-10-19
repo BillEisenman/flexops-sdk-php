@@ -12,10 +12,17 @@ class CarbonOffsetsResource
     {
         return $this->http->post($this->wsPath() . '/carbon-offsets/quote', ['weightLbs' => $weightLbs, 'distanceMiles' => $distanceMiles]);
     }
-    /** Buys an offset for a shipment and debits the workspace wallet (201). */
-    public function purchase(string $trackingNumber, float $weightLbs, float $distanceMiles): mixed
+    /**
+     * Buys an offset for a shipment and debits the workspace wallet (201).
+     *
+     * Pass an `$idempotencyKey` you store with the purchase to make your own retry safe: after an
+     * error or a timeout, retry with the same key and the Gateway returns the first result instead
+     * of buying again. Without one, the SDK's own retries still share a key, but a new call gets a new key.
+     */
+    public function purchase(string $trackingNumber, float $weightLbs, float $distanceMiles, ?string $idempotencyKey = null): mixed
     {
-        return $this->http->post($this->wsPath() . '/carbon-offsets/purchase', ['trackingNumber' => $trackingNumber, 'weightLbs' => $weightLbs, 'distanceMiles' => $distanceMiles]);
+        return $this->http->post($this->wsPath() . '/carbon-offsets/purchase', ['trackingNumber' => $trackingNumber, 'weightLbs' => $weightLbs, 'distanceMiles' => $distanceMiles],
+            headers: $idempotencyKey === null ? [] : ["Idempotency-Key: {$idempotencyKey}"]);
     }
     public function list(?int $page = null, ?int $pageSize = null): mixed
     {

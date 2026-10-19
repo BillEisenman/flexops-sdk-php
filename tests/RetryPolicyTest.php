@@ -40,6 +40,18 @@ class RetryPolicyTest extends TestCase
         $this->assertSame($keys[0], $keys[1]);
     }
 
+    public function testPurchasesSendTheCallersKeyOnEveryAttempt(): void
+    {
+        ['client' => $client, 'mock' => $mock] = TestHelper::createClient();
+        $mock->enqueueError(503, 'Unavailable')->enqueueJson(['id' => 'pol-1'], 201);
+
+        $client->insurance->purchase('9400 1', 'USPS', 100.0, idempotencyKey: 'order-42-insurance');
+        $client->carbonOffsets->purchase('9400 1', 2.0, 300.0, 'order-42-offset');
+        $client->carbonOffsets->purchase('9400 1', 2.0, 300.0, 'order-42-offset');
+
+        $this->assertSame(['order-42-insurance', 'order-42-insurance', 'order-42-offset', 'order-42-offset'], self::keys($mock));
+    }
+
     public function testEachSeparateWriteGetsANewKey(): void
     {
         ['client' => $client, 'mock' => $mock] = TestHelper::createClient();

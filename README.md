@@ -163,7 +163,7 @@ calls accept a `WorkspaceRole`, its number, or its name. `listMembers()` returns
 
 The client retries a request up to three times with exponential backoff, only where that is safe:
 
-- Every POST, PUT and PATCH sends an `Idempotency-Key` header: the key you pass (`createLabel($request, $key)`), else one generated for the call and reused on each of its retries. The Gateway replays a write it already finished instead of running it again.
+- Every POST, PUT and PATCH sends an `Idempotency-Key` header: the key you pass (`createLabel($request, $key)`, or `$idempotencyKey` on `insurance->purchase()` and `carbonOffsets->purchase()`; store it so a retry your app makes after an error or a timeout reuses it), else one generated for the call and reused on each of its retries. The Gateway replays a write it already finished instead of running it again.
 - GET retries on a network error, a timeout, 429, 500, 502, 503 and 504.
 - POST, PUT and PATCH retry on a network error, a timeout, 429, 502, 503, 504, and 409 `IDEMPOTENCY_CONFLICT` (the first attempt is still running). They never retry a 500: the Gateway does not store a 500 response, so a retry would run the write, and any charge, again.
 - DELETE retries only on 429.

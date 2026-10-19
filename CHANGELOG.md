@@ -48,6 +48,7 @@ Not tagged yet; the version comes from the `v2.0.0` tag.
 
 ### Added
 - `$client->carbonOffsets`: `quote($weightLbs, $distanceMiles)`, `purchase($trackingNumber, $weightLbs, $distanceMiles)`, `list($page, $pageSize)`, `get($offsetId)`, `summary()`, `getSettings()` and `updateSettings($autoOffsetEnabled)`.
+- `insurance->purchase(..., $idempotencyKey = null)` and `carbonOffsets->purchase(..., $idempotencyKey = null)` accept your own `Idempotency-Key`. Store it with the purchase and reuse it when your app retries, so the Gateway returns the first result instead of charging again.
 - `rules->test($shipment)` dry-runs the shipping rules (`POST shipping-rules/test`).
 - `webhooks->test($webhookId)` sends a test event (`POST webhooks/{id}/test`).
 - `FlexOps\WorkspaceRole` (int-backed enum: Owner 0, Admin 1, Member 2, Merchant 3).
