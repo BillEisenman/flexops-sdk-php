@@ -23,6 +23,9 @@ class MockHttpClient extends HttpClient
     /** @var list<array{method: string, url: string, headers: array, body: mixed}> */
     public array $requests = [];
 
+    /** @var list<float> Backoff delays the client asked for, in seconds. */
+    public array $sleeps = [];
+
     public function __construct(
         string $baseUrl = 'http://localhost',
         ?string $apiKey = null,
@@ -49,11 +52,12 @@ class MockHttpClient extends HttpClient
     /**
      * Enqueue an error response (non-JSON body with optional error message).
      */
-    public function enqueueError(int $statusCode, ?string $message = null, ?array $errors = null, ?string $retryAfter = null): self
+    public function enqueueError(int $statusCode, ?string $message = null, ?array $errors = null, ?string $retryAfter = null, ?string $errorCode = null): self
     {
         $body = json_encode(array_filter([
             'message' => $message,
             'errors' => $errors,
+            'errorCode' => $errorCode,
         ], fn($v) => $v !== null));
 
         $headerLines = "HTTP/1.1 {$statusCode} Error\r\ncontent-type: application/json\r\n";
@@ -66,6 +70,20 @@ class MockHttpClient extends HttpClient
             'statusCode' => $statusCode,
             'headers' => $headerLines,
             'body' => $body,
+            'error' => null,
+        ];
+        return $this;
+    }
+
+    /**
+     * Enqueue a 2xx response with no body, such as a 204.
+     */
+    public function enqueueEmpty(int $statusCode = 204): self
+    {
+        $this->queue[] = [
+            'statusCode' => $statusCode,
+            'headers' => "HTTP/1.1 {$statusCode} No Content\r\n\r\n",
+            'body' => '',
             'error' => null,
         ];
         return $this;
@@ -86,11 +104,32 @@ class MockHttpClient extends HttpClient
     }
 
     /**
+     * The value of a request header, or null when the request did not send it.
+     */
+    public static function header(array $request, string $name): ?string
+    {
+        foreach ($request['headers'] as $header) {
+            if (stripos($header, $name . ':') === 0) {
+                return trim(substr($header, strlen($name) + 1));
+            }
+        }
+        return null;
+    }
+
+    /**
      * Get the last recorded request.
      */
     public function lastRequest(): ?array
     {
         return $this->requests ? $this->requests[array_key_last($this->requests)] : null;
+    }
+
+    /**
+     * Record retry delays instead of sleeping.
+     */
+    protected function sleep(float $seconds): void
+    {
+        $this->sleeps[] = $seconds;
     }
 
     /**

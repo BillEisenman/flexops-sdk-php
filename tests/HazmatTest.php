@@ -96,16 +96,19 @@ class HazmatTest extends TestCase
     public function testValidateAddressSendsTheGatewayRequest(): void
     {
         ['client' => $client, 'mock' => $mock] = TestHelper::createClient();
-        $canonical = ['addressLine1' => '123 Main St', 'city' => 'New York', 'stateProvince' => 'NY',
-            'postalCode' => '10001', 'countryCode' => 'US'];
+        $flat = ['line1' => '123 Main St', 'city' => 'New York', 'state' => 'NY', 'postalCode' => '10001', 'country' => 'US'];
         $client->shipping->validateAddress(['name' => 'J', 'street1' => '123 Main St', 'city' => 'New York',
             'state' => 'NY', 'zip' => '10001', 'country' => 'US']);
-        $client->shipping->validateAddress($canonical);
+        $client->shipping->validateAddress(['addressLine1' => '123 Main St', 'city' => 'New York', 'stateProvince' => 'NY',
+            'postalCode' => '10001', 'countryCode' => 'US']);
+        $client->shipping->validateAddress($flat);
 
         foreach ($mock->requests as $call) {
-            $this->assertSame('http://localhost/api/shipping/addresses/validate', $call['url']);
+            $this->assertSame('POST', $call['method']);
+            $this->assertSame('http://localhost/api/addresses/validate', $call['url']);
         }
-        $this->assertEquals(['address' => ['name' => 'J'] + $canonical], self::wire($mock->requests[0]));
-        $this->assertSame(['address' => $canonical], self::wire($mock->requests[1]));
+        $this->assertSame(['name' => 'J'] + $flat, self::wire($mock->requests[0]));
+        $this->assertSame($flat, self::wire($mock->requests[1]));
+        $this->assertSame($flat, self::wire($mock->requests[2]));
     }
 }
