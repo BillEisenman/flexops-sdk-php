@@ -98,7 +98,7 @@ class ClientTest extends TestCase
     }
 
     // ---------------------------------------------------------------
-    // 5. All 20 resource properties are accessible
+    // 5. All 19 resource properties are accessible
     // ---------------------------------------------------------------
     public function testAllResourcePropertiesExist(): void
     {
@@ -112,17 +112,16 @@ class ClientTest extends TestCase
         $this->assertNotNull($client->wallet);
         $this->assertNotNull($client->insurance);
         $this->assertNotNull($client->returns);
-        $this->assertNotNull($client->apiKeys);
         $this->assertNotNull($client->analytics);
         $this->assertNotNull($client->orders);
         $this->assertNotNull($client->inventory);
         $this->assertNotNull($client->pickups);
         $this->assertNotNull($client->scanForms);
         $this->assertNotNull($client->rules);
-        $this->assertNotNull($client->offsets);
         $this->assertNotNull($client->hsCodes);
+        $this->assertNotNull($client->carbonOffsets);
         $this->assertNotNull($client->recurringShipments);
+        $this->assertNotNull($client->reportSchedules);
         $this->assertNotNull($client->emailTemplates);
-        $this->assertNotNull($client->reports);
     }
 }

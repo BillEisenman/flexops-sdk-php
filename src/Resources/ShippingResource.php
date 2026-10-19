@@ -11,7 +11,9 @@ class ShippingResource
     public function getCheapestRate(array $request): mixed { return $this->http->post('/api/shipping/rates/cheapest', $request); }
     public function getFastestRate(array $request): mixed { return $this->http->post('/api/shipping/rates/fastest', $request); }
     /**
-     * Returns a raw preview or label. Confirm explicitly and reuse the purchase key on retries.
+     * Returns a raw preview or label. Confirm explicitly. The SDK sends one Idempotency-Key on
+     * every retry of this call; pass your own $idempotencyKey (and reuse it) to make a purchase
+     * you repeat yourself, for example after a crash, safe as well.
      * A label without an `orderId` must declare `hazmatClassification` (a HazmatClassification;
      * `HazmatClassification::None` for an ordinary parcel). The SDK never fills it in.
      */
@@ -36,12 +38,17 @@ class ShippingResource
     }
     public function track(string $trackingNumber): mixed { return $this->http->get('/api/shipping/track/' . rawurlencode($trackingNumber)); }
     /**
-     * Sends the Gateway AddressValidationRequest (`['address' => [...]]`). A legacy
-     * `street1`/`state`/`zip` address is mapped to the Gateway field names.
+     * Validates an address with the documented POST /api/addresses/validate. Sends the flat
+     * `['name' => ?, 'line1' => ..., 'line2' => ?, 'city' => ..., 'state' => ?, 'postalCode' => ...,
+     * 'country' => 'US']`; a legacy `street1`/`zip` address or a Gateway ShippingAddress
+     * (`addressLine1`/`stateProvince`/`countryCode`) is mapped to those names.
+     *
+     * Returns the bare AddressValidationResult: `isValid`, `suggestedAddress`, `isResidential`,
+     * `warnings`, `validatedBy`, `validationUnavailable` and `checkedAt`.
      */
     public function validateAddress(array $address): mixed
     {
-        return $this->http->post('/api/shipping/addresses/validate', ['address' => self::toShippingAddress($address)]);
+        return $this->http->post('/api/addresses/validate', self::toValidationRequest($address));
     }
     /** The payload is sent as given. Set `hazmatClassification` on an item only when you have a declaration. */
     public function createBatch(array $request): mixed { return $this->http->post($this->wsPath() . '/labels/batch', $request); }
@@ -56,24 +63,23 @@ class ShippingResource
 
     private function wsPath(): string { return '/api/workspaces/' . ($this->getWsId)(); }
 
-    private const LEGACY_ADDRESS_FIELDS = [
-        'street1' => 'addressLine1',
-        'street2' => 'addressLine2',
-        'state' => 'stateProvince',
+    private const ADDRESS_FIELD_ALIASES = [
+        'street1' => 'line1',
+        'addressLine1' => 'line1',
+        'street2' => 'line2',
+        'addressLine2' => 'line2',
+        'stateProvince' => 'state',
         'zip' => 'postalCode',
-        'country' => 'countryCode',
+        'countryCode' => 'country',
     ];
 
-    /** Maps an address to the Gateway ShippingAddress; canonical input passes through. */
-    private static function toShippingAddress(array $address): array
+    /** Maps an address to the Gateway AddressValidationRequest; its own field names pass through. */
+    private static function toValidationRequest(array $address): array
     {
-        if (!array_key_exists('street1', $address)) {
-            return $address;
-        }
         $mapped = [];
         foreach ($address as $key => $value) {
             if ($value !== null) {
-                $mapped[self::LEGACY_ADDRESS_FIELDS[$key] ?? $key] = $value;
+                $mapped[self::ADDRESS_FIELD_ALIASES[$key] ?? $key] = $value;
             }
         }
         return $mapped;

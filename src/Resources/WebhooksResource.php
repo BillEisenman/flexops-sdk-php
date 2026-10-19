@@ -10,7 +10,6 @@ class WebhooksResource
     public function __construct(private readonly HttpClient $http, private readonly \Closure $getWsId) {}
 
     public function list(): mixed { return $this->http->get($this->wsPath() . '/webhooks'); }
-    public function get(string $webhookId): mixed { return $this->http->get($this->wsPath() . "/webhooks/{$webhookId}"); }
 
     /**
      * Creates a webhook subscription.
@@ -59,6 +58,8 @@ class WebhooksResource
     public function delete(string $webhookId): mixed { return $this->http->delete($this->wsPath() . "/webhooks/{$webhookId}"); }
     public function rotateSecret(string $webhookId): mixed { return $this->http->post($this->wsPath() . "/webhooks/{$webhookId}/rotate-secret"); }
     public function listDeliveryLogs(string $webhookId): mixed { return $this->http->get($this->wsPath() . "/webhooks/{$webhookId}/deliveries"); }
+    /** Sends a test event (`X-FlexOps-Event: test`) to the subscription's URL. */
+    public function test(string $webhookId): mixed { return $this->http->post($this->wsPath() . "/webhooks/{$webhookId}/test"); }
 
     /** Headers FlexOps sends with every webhook delivery. */
     public const EVENT_HEADER = 'X-FlexOps-Event';         // event name; "test" for a test event

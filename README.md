@@ -46,7 +46,7 @@ echo $preview['quotedPostageAmount'];
 $purchaseApprovedLabel = function (string $purchaseKey) use ($client, $request, $preview) {
     $request['confirmationToken'] = $preview['confirmationToken'];
     return $client->shipping->createLabel($request, $purchaseKey);
-}; // Persist the purchase key and reuse it on retries.
+}; // Persist the purchase key and reuse it if you send this purchase again.
 
 // Track a shipment
 $info = $client->shipping->track('9400111899223456789012');
@@ -88,7 +88,7 @@ $client = new FlexOps([
 
 ```php
 $client = new FlexOps(['baseUrl' => 'https://gateway.flexops.io']);
-$client->auth->login('user@example.com', 'password');
+$client->auth->login('user@example.com', 'password'); // the client now sends data.token as its bearer token
 $client->workspaceId = 'ws_abc123';
 ```
 
@@ -103,27 +103,73 @@ $client = new FlexOps([
 ]);
 ```
 
-## Direct carrier operations
+## Carrier-specific calls
 
-Access carrier-specific endpoints when you need full control:
+`$client->carriers` (USPS, UPS, FedEx, DHL) goes through the Gateway's legacy ApiProxy route,
+which is sunset on 2027-06-30.
+
+- Lookups (GET), such as the ones below, work with an API key.
+- The writes (rates by POST, pickups, voids, freight, documents) are `@deprecated` and need a user
+  token (`$client->auth->login()`): API keys get 403 `API_KEY_SCOPE_REQUIRED`. They stop working when
+  the proxy is retired.
+- The proxy's label-generation routes are closed (410), so the SDK no longer has them.
+
+Native replacements: `shipping->getRates()`, `createLabel()`, `cancelLabel()`, `validateAddress()`
+and `track()`; `pickups->schedule()`, `get()` and `cancel()`; `scanForms->create()`; and
+`hsCodes->estimateLandedCost()`.
 
 ```php
-// USPS domestic label
-$label = $client->carriers->usps->createDomesticLabel([
-    'imageType'      => 'PDF',
-    'mailClass'      => 'PRIORITY_MAIL',
-    'weightInOunces' => 16,
-]);
-
-// FedEx rate quote
-$rates = $client->carriers->fedex->getRates([...]);
+// USPS city/state for a ZIP code
+$place = $client->carriers->usps->cityStateLookup('10001');
 
 // UPS tracking
 $info = $client->carriers->ups->track(['trackingNumber' => '1Z999AA10123456784']);
 
-// DHL shipment
-$shipment = $client->carriers->dhl->createShipment([...]);
+// DHL service points
+$points = $client->carriers->dhl->findServicePoints(['postalCode' => '10001', 'countryCode' => 'US']);
 ```
+
+## Address validation
+
+```php
+$result = $client->shipping->validateAddress([
+    'line1' => '123 Main St', 'city' => 'New York', 'state' => 'NY', 'postalCode' => '10001', 'country' => 'US',
+]);
+if (!$result['isValid'] && $result['suggestedAddress']) {
+    // Offer $result['suggestedAddress'] to the user.
+}
+```
+
+The result is bare JSON (no `data` envelope): `isValid`, `suggestedAddress`, `isResidential`,
+`warnings`, `validatedBy`, `validationUnavailable` and `checkedAt`.
+
+## Workspace members
+
+```php
+use FlexOps\WorkspaceRole;
+
+$client->workspaces->inviteMember('teammate@example.com', WorkspaceRole::Admin); // or 'Admin'
+$result = $client->workspaces->listMembers();
+foreach ($result['data']['members'] as $member) {
+    echo $member['email'], ' ', WorkspaceRole::from($member['role'])->name, PHP_EOL;
+}
+```
+
+Roles travel as the Gateway numbers (Owner 0, Admin 1, Member 2, Merchant 3). The member
+calls accept a `WorkspaceRole`, its number, or its name. `listMembers()` returns
+`data.members`, `data.pendingInvites`, `data.userLimit`, `data.activeCount` and `data.canInviteMore`.
+
+## Retries and idempotency
+
+The client retries a request up to three times with exponential backoff, only where that is safe:
+
+- Every POST, PUT and PATCH sends an `Idempotency-Key` header: the key you pass (`createLabel($request, $key)`), else one generated for the call and reused on each of its retries. The Gateway replays a write it already finished instead of running it again.
+- GET retries on a network error, a timeout, 429, 500, 502, 503 and 504.
+- POST, PUT and PATCH retry on a network error, a timeout, 429, 502, 503, 504, and 409 `IDEMPOTENCY_CONFLICT` (the first attempt is still running). They never retry a 500: the Gateway does not store a 500 response, so a retry would run the write, and any charge, again.
+- DELETE retries only on 429.
+
+A key reused with a different request gets 422 `IDEMPOTENCY_KEY_REUSED`, which is not retried.
+A successful response with no body (204) returns `null`.
 
 ## Webhook subscriptions
 
@@ -226,8 +272,8 @@ curl -X POST https://gateway.flexops.io/api/shipping/labels \
 curl https://gateway.flexops.io/api/shipping/track/9400111899223456789012 \
   -H "X-API-Key: fxk_live_..."
 
-# Cancel a label (via the unified carrier-agnostic endpoint)
-curl -X DELETE https://gateway.flexops.io/api/v3.0/shipping/Usps/cancel/9400111899223456789012 \
+# Cancel (void) a label
+curl -X DELETE "https://gateway.flexops.io/api/shipping/labels/{labelId}?carrierCode=USPS" \
   -H "X-API-Key: fxk_live_..."
 ```
 
@@ -237,26 +283,56 @@ Use an `fxk_test_...` key instead of `fxk_live_...` to hit the sandbox environme
 
 | Resource | Description |
 |----------|-------------|
-| `$client->auth` | Login, register, password management |
-| `$client->workspaces` | Workspace CRUD, membership, branding |
-| `$client->shipping` | Rate shopping, labels, tracking, batch, cancel |
-| `$client->carriers` | USPS, UPS, FedEx, DHL direct endpoints |
-| `$client->webhooks` | Subscription CRUD, signature verification, delivery logs |
-| `$client->wallet` | Balance, transactions, auto-reload |
-| `$client->insurance` | Quotes, purchase, claims (first-party + U-PIC) |
-| `$client->returns` | RMA lifecycle: create, batch, QR codes, photo upload, cost recovery |
-| `$client->apiKeys` | Key creation, rotation, revocation |
+| `$client->auth` | Login, token refresh and logout (for user-token calls) |
+| `$client->workspaces` | Workspaces and members |
+| `$client->shipping` | Rate shopping, labels, tracking, address validation, batch, cancel |
+| `$client->carriers` | Read-only USPS, UPS and DHL lookups |
+| `$client->webhooks` | Subscriptions, test events, delivery logs, signature verification |
+| `$client->wallet` | Workspace wallet balance |
+| `$client->insurance` | Quotes, policies, claims |
+| `$client->returns` | RMAs: create, return labels, receiving |
 | `$client->analytics` | Shipments, orders, carrier performance |
-| `$client->orders` | Order management |
-| `$client->inventory` | Warehouse inventory |
+| `$client->orders` | Order lookups |
+| `$client->inventory` | Warehouse inventory lookups |
 | `$client->pickups` | Carrier pickup scheduling |
 | `$client->scanForms` | USPS scan forms |
-| `$client->rules` | Shipping automation rules |
-| `$client->offsets` | Carbon offset purchases |
-| `$client->hsCodes` | HS code lookup for international customs |
+| `$client->rules` | Shipping automation rules, dry-run tests |
+| `$client->carbonOffsets` | Carbon offset quotes, purchases and settings |
+| `$client->hsCodes` | HS code search and landed-cost estimates |
 | `$client->recurringShipments` | Scheduled recurring shipments |
-| `$client->emailTemplates` | Branded post-purchase email templates |
-| `$client->reports` | Report generation and scheduled delivery |
+| `$client->reportSchedules` | Scheduled report delivery by email |
+| `$client->emailTemplates` | Branded shipment-tracking email templates |
+
+API keys, wallet funding and account management live in the FlexOps portals; 2.0 removed them
+from the SDK. See the [CHANGELOG](CHANGELOG.md) for the full list.
+
+### Recurring shipments, report schedules and email templates
+
+```php
+use FlexOps\RecurrenceInterval;
+use FlexOps\ReportFormat;
+use FlexOps\ReportFrequency;
+use FlexOps\TrackingEmailEvent;
+
+$schedule = $client->recurringShipments->create([
+    'name' => 'Weekly restock', 'interval' => RecurrenceInterval::Weekly,
+    'presetId' => $presetId, 'addressId' => $addressId, 'firstRunUtc' => '2026-11-02T15:00:00Z',
+]); // bare JSON: $schedule['id'], $schedule['nextRunUtc'], ...
+
+$report = $client->reportSchedules->create([
+    'reportType' => 'shipments', 'format' => ReportFormat::Csv, 'frequencyType' => ReportFrequency::Weekly,
+    'dayOfWeek' => 1, 'timeOfDayUtc' => '08:00:00', 'recipientEmails' => 'ops@example.com',
+]); // envelope: $report['data']['id']
+
+$client->emailTemplates->upsert([
+    'eventType' => TrackingEmailEvent::Delivered,
+    'subjectTemplate' => 'Delivered: {{tracking_number}}', 'htmlBodyTemplate' => '<p>Your order arrived.</p>',
+]);
+```
+
+Reads work with any API key or a user token. Writes need a user token or an API key granted the
+resource's opt-in scope (`recurring-shipments:write`, `report-schedules:write`,
+`email-templates:write`); other keys get 403 `API_KEY_SCOPE_REQUIRED` with `requiredScopes`.
 
 ## Configuration
 

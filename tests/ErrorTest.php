@@ -71,7 +71,8 @@ class ErrorTest extends TestCase
     }
 
     // ---------------------------------------------------------------
-    // 4. 500 retries and succeeds on second attempt
+    // 4. A GET retries a 500 and succeeds on the second attempt
+    //    (a write never retries a 500: see RetryPolicyTest)
     // ---------------------------------------------------------------
     public function testServerErrorRetriesAndSucceeds(): void
     {
@@ -81,7 +82,7 @@ class ErrorTest extends TestCase
         $mock->enqueueError(500, 'Internal Server Error');
         $mock->enqueueJson(['success' => true, 'data' => []]);
 
-        $result = $client->shipping->getRates(TestHelper::rateRequest());
+        $result = $client->shipping->getCarriers();
 
         $this->assertTrue($result['success']);
         $this->assertCount(2, $mock->requests, 'Should have made 2 requests (initial + 1 retry)');
