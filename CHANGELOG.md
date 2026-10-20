@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.0.0] - Unreleased
+## [2.0.0] - 2026-10-19
 
 2.0 exposes only the documented public Gateway API, fixes the calls that stay to match the
 Gateway's routes, bodies and numeric enums, and makes retries safe for purchases.
