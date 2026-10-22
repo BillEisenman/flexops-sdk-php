@@ -19,8 +19,8 @@ use FlexOps\HazmatClassification;
 
 // API key authentication (recommended for server-to-server)
 $client = new FlexOps([
-    'apiKey'      => 'fxk_live_...',
-    'workspaceId' => 'ws_abc123',
+    'apiKey'      => 'live_...',
+    'workspaceId' => 'your-workspace-id',
 ]);
 
 // Get shipping rates from all carriers
@@ -79,8 +79,8 @@ separate contracts. The SDK never automatically confirms a preview.
 
 ```php
 $client = new FlexOps([
-    'apiKey'      => 'fxk_live_...',
-    'workspaceId' => 'ws_abc123',
+    'apiKey'      => 'live_...',
+    'workspaceId' => 'your-workspace-id',
 ]);
 ```
 
@@ -89,17 +89,17 @@ $client = new FlexOps([
 ```php
 $client = new FlexOps(['baseUrl' => 'https://gateway.flexops.io']);
 $client->auth->login('user@example.com', 'password'); // the client now sends data.token as its bearer token
-$client->workspaceId = 'ws_abc123';
+$client->workspaceId = 'your-workspace-id';
 ```
 
 ## Sandbox / test keys
 
-Use `fxk_test_...` (instead of `fxk_live_...`) to route to the sandbox environment. Mock carriers respond, nothing hits real carrier APIs, no charges, no real labels. Perfect for CI and integration tests.
+Use `test_...` (instead of `live_...`) to route to the sandbox environment. Mock carriers respond, nothing hits real carrier APIs, no charges, no real labels. Perfect for CI and integration tests.
 
 ```php
 $client = new FlexOps([
-    'apiKey'      => 'fxk_test_...',
-    'workspaceId' => 'ws_abc123',
+    'apiKey'      => 'test_...',
+    'workspaceId' => 'your-workspace-id',
 ]);
 ```
 
@@ -242,7 +242,7 @@ Every SDK method is a thin wrapper around the FlexOps REST API. If you want to v
 ```bash
 # Shop rates across all connected carriers
 curl -X POST https://gateway.flexops.io/api/shipping/rates \
-  -H "X-API-Key: fxk_live_..." \
+  -H "X-API-Key: live_..." \
   -H "Content-Type: application/json" \
   -d '{
     "origin": {"addressLine1": "123 Main St", "city": "New York", "stateProvince": "NY", "postalCode": "10001", "countryCode": "US"},
@@ -253,7 +253,7 @@ curl -X POST https://gateway.flexops.io/api/shipping/rates \
 # Preview a live label; this does not purchase it.
 # hazmatClassification 0 = not hazardous; required when there is no orderId.
 curl -X POST https://gateway.flexops.io/api/shipping/labels \
-  -H "X-API-Key: fxk_live_..." \
+  -H "X-API-Key: live_..." \
   -H "Content-Type: application/json" \
   -d '{
     "carrierCode": "USPS", "serviceCode": "GROUND_ADVANTAGE",
@@ -270,14 +270,14 @@ curl -X POST https://gateway.flexops.io/api/shipping/labels \
 
 # Track a shipment
 curl https://gateway.flexops.io/api/shipping/track/9400111899223456789012 \
-  -H "X-API-Key: fxk_live_..."
+  -H "X-API-Key: live_..."
 
 # Cancel (void) a label
 curl -X DELETE "https://gateway.flexops.io/api/shipping/labels/{labelId}?carrierCode=USPS" \
-  -H "X-API-Key: fxk_live_..."
+  -H "X-API-Key: live_..."
 ```
 
-Use an `fxk_test_...` key instead of `fxk_live_...` to hit the sandbox environment; mock carriers respond, no real charges, no real labels.
+Use a `test_...` key instead of `live_...` to hit the sandbox environment; mock carriers respond, no real charges, no real labels.
 
 ## Resources
 
@@ -339,8 +339,8 @@ resource's opt-in scope (`recurring-shipments:write`, `report-schedules:write`,
 ```php
 $client = new FlexOps([
     'baseUrl'     => 'https://gateway.flexops.io', // API base URL
-    'apiKey'      => 'fxk_live_...',           // API key auth
-    'workspaceId' => 'ws_abc123',              // Default workspace
+    'apiKey'      => 'live_...',               // API key auth
+    'workspaceId' => 'your-workspace-id',      // Default workspace
     'timeout'     => 30,                       // Request timeout (seconds)
 ]);
 ```
