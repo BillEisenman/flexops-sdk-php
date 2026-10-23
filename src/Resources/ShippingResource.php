@@ -50,7 +50,6 @@ class ShippingResource
     {
         return $this->http->post('/api/addresses/validate', self::toValidationRequest($address));
     }
-    /** The payload is sent as given. Set `hazmatClassification` on an item only when you have a declaration. */
     /**
      * Buy labels for one order shipped in 1 to 99 boxes with the same carrier and service
      * (`POST /api/shipping/multi-package`, the Gateway MultiPackageShipmentRequest):
@@ -84,7 +83,18 @@ class ShippingResource
         return $this->http->post('/api/shipping/multi-package', $request,
             headers: $idempotencyKey === null ? [] : ["Idempotency-Key: {$idempotencyKey}"]);
     }
+    /**
+     * The payload is sent as given. Set `hazmatClassification` on an item only when you have a declaration.
+     * Batch labels cannot carry HAZMAT yet: send `HazmatClassification::None` or leave `hazmatClassification`
+     * out. The Gateway refuses any other class with 400 `HazmatNotSupported`; buy HAZMAT labels one at a
+     * time with createLabel().
+     */
     public function createBatch(array $request): mixed { return $this->http->post($this->wsPath() . '/labels/batch', $request); }
+    /**
+     * Previews a batch without buying labels. The payload is sent as given; as with createBatch(), an item's
+     * `hazmatClassification` accepts only `HazmatClassification::None` or nothing (any other class is 400
+     * `HazmatNotSupported`).
+     */
     public function previewBatch(array $request): mixed { return $this->http->post($this->wsPath() . '/labels/batch/preview', $request); }
     public function getBatchStatus(string $jobId): mixed { return $this->http->get($this->wsPath() . "/labels/batch/{$jobId}"); }
     public function downloadBatchLabel(string $jobId, string $itemId): mixed { return $this->http->get($this->wsPath() . "/labels/batch/{$jobId}/items/{$itemId}/label"); }
