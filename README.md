@@ -285,12 +285,12 @@ Use a `test_...` key instead of `live_...` to hit the sandbox environment; mock 
 |----------|-------------|
 | `$client->auth` | Login, token refresh and logout (for user-token calls) |
 | `$client->workspaces` | Workspaces and members |
-| `$client->shipping` | Rate shopping, labels, tracking, address validation, batch, cancel |
+| `$client->shipping` | Rate shopping, labels, multi-package labels, tracking, address validation, batch, cancel |
 | `$client->carriers` | Read-only USPS, UPS and DHL lookups |
 | `$client->webhooks` | Subscriptions, test events, delivery logs, signature verification |
 | `$client->wallet` | Workspace wallet balance |
 | `$client->insurance` | Quotes, policies, claims |
-| `$client->returns` | RMAs: create, return labels, receiving |
+| `$client->returns` | RMAs (create, read, list), return labels, receiving, received returns |
 | `$client->analytics` | Shipments, orders, carrier performance |
 | `$client->orders` | Order lookups |
 | `$client->inventory` | Warehouse inventory lookups |
@@ -305,6 +305,38 @@ Use a `test_...` key instead of `live_...` to hit the sandbox environment; mock 
 
 API keys, wallet funding and account management live in the FlexOps portals; 2.0 removed them
 from the SDK. See the [CHANGELOG](CHANGELOG.md) for the full list.
+
+### Multi-package labels
+
+One order shipped in several boxes with the same carrier and service; each box gets its own label and a
+box that fails does not stop the others. Multi-package labels cannot carry HAZMAT: send
+`HazmatClassification::None` or leave `hazmatClassification` out.
+
+```php
+use FlexOps\FlexOpsError;
+use FlexOps\HazmatClassification;
+
+try {
+    $shipment = $client->shipping->createMultiPackage([
+        'orderId' => 12345,
+        'carrierCode' => 'USPS',
+        'serviceCode' => 'PRIORITY',
+        'hazmatClassification' => HazmatClassification::None,
+        'packages' => [
+            ['weightInOunces' => 16, 'lengthInInches' => 10, 'widthInInches' => 8, 'heightInInches' => 4, 'packageReference' => 'Box 1 of 2'],
+            ['weightInOunces' => 8, 'lengthInInches' => 6, 'widthInInches' => 6, 'heightInInches' => 6, 'packageReference' => 'Box 2 of 2'],
+        ],
+    ], 'order-12345-boxes'); // optional Idempotency-Key; reuse it when you retry
+} catch (FlexOpsError $e) {
+    // No label was bought: 422 AllPackagesFailed, or 409 OutcomeUnknown when a label may exist
+    // (check the order before buying again). $e->data holds the per-box results.
+}
+```
+
+### Returns
+
+`returns->create()` opens an RMA; `getRma()` and `listRmas()` read RMAs. `returns->list()` and `get()` read
+*received* returns, and `get()` takes the numeric return ID, not an RMA number.
 
 ### Recurring shipments, report schedules and email templates
 

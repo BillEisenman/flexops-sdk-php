@@ -8,12 +8,26 @@ class ReturnsResource
 {
     public function __construct(private readonly HttpClient $http, private readonly \Closure $getWsId) {}
 
-    /** $startDate and $endDate are ISO 8601 dates or date-times. */
+    /**
+     * Lists received returns. $startDate and $endDate are ISO 8601 dates or date-times; the Gateway
+     * defaults to the last 30 days. To list return authorizations, use listRmas().
+     */
     public function list(?int $page = null, ?int $pageSize = null, ?string $startDate = null, ?string $endDate = null): mixed
     {
         return $this->http->get($this->wsPath() . '/returns', array_filter(['page' => $page, 'pageSize' => $pageSize, 'startDate' => $startDate, 'endDate' => $endDate]) ?: null);
     }
-    public function get(string $returnId): mixed { return $this->http->get($this->wsPath() . "/returns/{$returnId}"); }
+    /**
+     * Gets a received return by its numeric return ID (`returnId` on a listed return or an RMA). An RMA
+     * number such as `RMA-1001` is not a return ID and matches no Gateway route; use getRma().
+     */
+    public function get(int|string $returnId): mixed { return $this->http->get($this->wsPath() . "/returns/{$returnId}"); }
+    /** Lists return authorizations (RMAs), one page at a time. */
+    public function listRmas(?int $page = null, ?int $pageSize = null): mixed
+    {
+        return $this->http->get($this->wsPath() . '/returns/rma', array_filter(['page' => $page, 'pageSize' => $pageSize], fn($v) => $v !== null) ?: null);
+    }
+    /** Gets a return authorization by its RMA number, for example `RMA-1001`. */
+    public function getRma(string $rmaNumber): mixed { return $this->http->get($this->wsPath() . '/returns/rma/' . rawurlencode($rmaNumber)); }
     /**
      * Creates an RMA (201). $request is the Gateway CreateRmaRequest: `orderId` (a number), `reason`
      * and `items` (`[['sku' => ..., 'quantity' => 1, 'reason' => ?]]`) are required; `orderNumber`,

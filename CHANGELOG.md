@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `shipping->createMultiPackage(array $request, ?string $idempotencyKey = null)` buys labels for one order shipped in 1 to 99 boxes (`POST /api/shipping/multi-package`). `hazmatClassification` accepts only `HazmatClassification::None` or nothing; the Gateway refuses any other class with 400 `HazmatNotSupported`.
+- `returns->getRma($rmaNumber)` and `returns->listRmas($page, $pageSize)` read return authorizations (`GET .../returns/rma/{rmaNumber}` and `GET .../returns/rma`). There was no way to read an RMA back after creating it.
+- `FlexOpsError::$data` carries the envelope's `data` on an error reply. A multi-package 422 `AllPackagesFailed` or 409 `OutcomeUnknown` puts the per-box results there.
+
+### Fixed
+- `returns->get()` takes the numeric return ID (`int|string`) and says so. An RMA number such as `RMA-1001` matched no Gateway route; use `getRma()`. `returns->list()` is documented as listing received returns.
+
 ## [2.0.0] - 2026-10-19
 
 2.0 exposes only the documented public Gateway API, fixes the calls that stay to match the
