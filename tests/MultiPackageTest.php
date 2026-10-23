@@ -26,6 +26,7 @@ class MultiPackageTest extends TestCase
             'carrierCode' => 'USPS',
             'serviceCode' => 'PRIORITY',
             'hazmatClassification' => HazmatClassification::None,
+            'maximumPostageAmount' => 25.00,
             'packages' => [
                 ['weightInOunces' => 16, 'lengthInInches' => 10, 'widthInInches' => 8, 'heightInInches' => 4, 'packageReference' => 'Box 1 of 2'],
                 ['weightInOunces' => 8, 'lengthInInches' => 6, 'widthInInches' => 6, 'heightInInches' => 6],
@@ -48,6 +49,7 @@ class MultiPackageTest extends TestCase
         $sent = json_decode(json_encode($request['body']), true);
         $this->assertSame(0, $sent['hazmatClassification']);
         $this->assertSame(15563627, $sent['orderId']);
+        $this->assertEquals(25.00, $sent['maximumPostageAmount']);
         $this->assertCount(2, $sent['packages']);
         $this->assertSame('9400-2', $result['data']['labels'][1]['trackingNumber']);
     }
@@ -78,6 +80,33 @@ class MultiPackageTest extends TestCase
             $this->assertSame($data, $e->data);
         }
         $this->assertCount(1, $mock->requests);
+    }
+
+    public function testRefusedCeilingThrowsWithTheGatewayCodeAndIsNotRetried(): void
+    {
+        ['client' => $client, 'mock' => $mock] = TestHelper::createClient();
+        $mock->enqueueJson(['success' => false, 'errorCode' => 'ApprovalRequired',
+            'message' => 'Supply maximumPostageAmount in USD, positive and with at most two decimal places.'], 400);
+
+        try {
+            $client->shipping->createMultiPackage(['orderId' => 1, 'carrierCode' => 'USPS', 'maximumPostageAmount' => 0, 'packages' => []]);
+            $this->fail('Expected a FlexOpsError');
+        } catch (FlexOpsError $e) {
+            $this->assertSame(400, $e->statusCode);
+            $this->assertSame('ApprovalRequired', $e->errorCode);
+        }
+        $this->assertCount(1, $mock->requests);
+    }
+
+    /** The request is an array, so the required ceiling is part of the documented contract. */
+    public function testTheRequestDocumentationNamesTheRequiredCeiling(): void
+    {
+        $doc = (new \ReflectionMethod(\FlexOps\Resources\ShippingResource::class, 'createMultiPackage'))->getDocComment();
+
+        $this->assertIsString($doc);
+        $this->assertStringContainsString("'maximumPostageAmount' => 25.00", $doc);
+        $this->assertStringContainsString('`maximumPostageAmount` is required', $doc);
+        $this->assertStringContainsString('refuses to buy a box that would take the total above it', $doc);
     }
 
     public function testRefusesAKeyWithALineBreak(): void

@@ -55,10 +55,16 @@ class ShippingResource
      * Buy labels for one order shipped in 1 to 99 boxes with the same carrier and service
      * (`POST /api/shipping/multi-package`, the Gateway MultiPackageShipmentRequest):
      * `['orderId' => 12345, 'carrierCode' => 'USPS', 'serviceCode' => ?, 'labelFormat' => ?, 'shipDate' => ?,
-     * 'hazmatClassification' => ?, 'packages' => [['weightInOunces' => 16, 'lengthInInches' => 10,
+     * 'hazmatClassification' => ?, 'maximumPostageAmount' => 25.00, 'packages' => [['weightInOunces' => 16, 'lengthInInches' => 10,
      * 'widthInInches' => 8, 'heightInInches' => 4, 'deliveryConfirmationRequired' => ?,
      * 'signatureConfirmationRequired' => ?, 'insuranceCoverageRequested' => ?, 'insuredValue' => ?,
      * 'packageReference' => ?], ...]]`. Weight is in ounces and every dimension in inches; all four are required.
+     *
+     * `maximumPostageAmount` is required: the most the whole shipment may cost, in USD (positive, at most
+     * two decimals). The Gateway refuses to buy a box that would take the total above it, so you never pay
+     * more: a box priced above what is left reports `PriceCeilingExceeded`, and once the amount is used up
+     * the remaining boxes report `PriceCeilingReached` and are not bought. Boxes already bought stay
+     * bought. A missing or invalid value is 400 `ApprovalRequired`.
      *
      * Multi-package labels cannot carry HAZMAT yet: send `HazmatClassification::None` or leave
      * `hazmatClassification` out. The Gateway refuses any other class with 400 `HazmatNotSupported`.
