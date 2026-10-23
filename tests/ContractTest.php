@@ -138,6 +138,7 @@ class ContractTest extends TestCase
             'shipping.validateAddress' => fn (FlexOps $c) => $c->shipping->validateAddress($address),
             'shipping.createBatch' => fn (FlexOps $c) => $c->shipping->createBatch(['items' => []]),
             'shipping.previewBatch' => fn (FlexOps $c) => $c->shipping->previewBatch(['items' => []]),
+            'shipping.createMultiPackage' => fn (FlexOps $c) => $c->shipping->createMultiPackage(['orderId' => 1, 'carrierCode' => 'USPS', 'packages' => [['weightInOunces' => 16, 'lengthInInches' => 10, 'widthInInches' => 8, 'heightInInches' => 4]]]),
             'shipping.getBatchStatus' => fn (FlexOps $c) => $c->shipping->getBatchStatus('job-1'),
             'shipping.downloadBatchLabel' => fn (FlexOps $c) => $c->shipping->downloadBatchLabel('job-1', 'item-1'),
             'shipping.getCarriers' => fn (FlexOps $c) => $c->shipping->getCarriers(),
@@ -180,7 +181,9 @@ class ContractTest extends TestCase
             'insurance.fileClaim' => fn (FlexOps $c) => $c->insurance->fileClaim('pol-1', 'Lost', 100.0),
 
             'returns.list' => fn (FlexOps $c) => $c->returns->list(),
-            'returns.get' => fn (FlexOps $c) => $c->returns->get('42'),
+            'returns.get' => fn (FlexOps $c) => $c->returns->get(42),
+            'returns.listRmas' => fn (FlexOps $c) => $c->returns->listRmas(),
+            'returns.getRma' => fn (FlexOps $c) => $c->returns->getRma('RMA-1'),
             'returns.create' => fn (FlexOps $c) => $c->returns->create(['orderId' => 1, 'reason' => 'Damaged', 'items' => [['sku' => 'A', 'quantity' => 1]]]),
             'returns.generateLabel' => fn (FlexOps $c) => $c->returns->generateLabel('RMA-1'),
             'returns.markReceived' => fn (FlexOps $c) => $c->returns->markReceived(42, 'RMA-1', [['partNumber' => 'A', 'quantity' => 1, 'disposition' => 0]]),

@@ -14,13 +14,19 @@ class FlexOpsError extends \Exception
     public readonly int $statusCode;
     public readonly ?string $errorCode;
     public readonly ?array $errors;
+    /**
+     * The envelope's `data` on an error reply, when the Gateway sends one. A multi-package 422
+     * `AllPackagesFailed` or 409 `OutcomeUnknown` carries the per-box results here.
+     */
+    public readonly mixed $data;
 
-    public function __construct(string $message, int $statusCode = 0, ?string $errorCode = null, ?array $errors = null)
+    public function __construct(string $message, int $statusCode = 0, ?string $errorCode = null, ?array $errors = null, mixed $data = null)
     {
         parent::__construct($message);
         $this->statusCode = $statusCode;
         $this->errorCode = $errorCode;
         $this->errors = $errors;
+        $this->data = $data;
     }
 }
 

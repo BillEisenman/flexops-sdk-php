@@ -158,7 +158,8 @@ class HttpClient
                 $errorBody['message'] ?? "HTTP {$statusCode}",
                 $statusCode,
                 $code ?? ($statusCode === 403 ? 'FORBIDDEN' : null),
-                $errorBody['errors'] ?? null
+                $errorBody['errors'] ?? null,
+                $errorBody['data'] ?? null
             );
 
             if ($this->isRetryable($method, $statusCode, $code)) {

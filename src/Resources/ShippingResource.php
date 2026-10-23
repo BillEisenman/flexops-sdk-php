@@ -51,6 +51,33 @@ class ShippingResource
         return $this->http->post('/api/addresses/validate', self::toValidationRequest($address));
     }
     /** The payload is sent as given. Set `hazmatClassification` on an item only when you have a declaration. */
+    /**
+     * Buy labels for one order shipped in 1 to 99 boxes with the same carrier and service
+     * (`POST /api/shipping/multi-package`, the Gateway MultiPackageShipmentRequest):
+     * `['orderId' => 12345, 'carrierCode' => 'USPS', 'serviceCode' => ?, 'labelFormat' => ?, 'shipDate' => ?,
+     * 'hazmatClassification' => ?, 'packages' => [['weightInOunces' => 16, 'lengthInInches' => 10,
+     * 'widthInInches' => 8, 'heightInInches' => 4, 'deliveryConfirmationRequired' => ?,
+     * 'signatureConfirmationRequired' => ?, 'insuranceCoverageRequested' => ?, 'insuredValue' => ?,
+     * 'packageReference' => ?], ...]]`. Weight is in ounces and every dimension in inches; all four are required.
+     *
+     * Multi-package labels cannot carry HAZMAT yet: send `HazmatClassification::None` or leave
+     * `hazmatClassification` out. The Gateway refuses any other class with 400 `HazmatNotSupported`.
+     *
+     * Returns the envelope when at least one label was bought (check `data.failedPackages` and each
+     * box in `data.labels`). When none was, the Gateway answers 422 `AllPackagesFailed`, or 409
+     * `OutcomeUnknown` when a box's carrier outcome is unknown and a label may exist: both throw a
+     * FlexOpsError whose `data` holds the per-box results. After `OutcomeUnknown`, check the order
+     * before buying again. Pass your own $idempotencyKey (and reuse it) to make a retry you run
+     * yourself safe.
+     */
+    public function createMultiPackage(array $request, ?string $idempotencyKey = null): mixed
+    {
+        if ($idempotencyKey !== null && preg_match('/[\r\n]/', $idempotencyKey)) {
+            throw new \InvalidArgumentException('Invalid idempotency key');
+        }
+        return $this->http->post('/api/shipping/multi-package', $request,
+            headers: $idempotencyKey === null ? [] : ["Idempotency-Key: {$idempotencyKey}"]);
+    }
     public function createBatch(array $request): mixed { return $this->http->post($this->wsPath() . '/labels/batch', $request); }
     public function previewBatch(array $request): mixed { return $this->http->post($this->wsPath() . '/labels/batch/preview', $request); }
     public function getBatchStatus(string $jobId): mixed { return $this->http->get($this->wsPath() . "/labels/batch/{$jobId}"); }
