@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Docs: `shipping->createBatch()`, `shipping->previewBatch()` and `returns->generateLabel()` now say that
+  `hazmatClassification` accepts only `HazmatClassification::None` (0) or nothing; the Gateway refuses any other
+  class with 400 `HazmatNotSupported`. The batch note had drifted above `createMultiPackage()` and now sits on the
+  batch methods. No behavior change.
+
 ## [2.2.0] - 2026-10-22
 
 2.2.0 requires a maximum total price on multi-package labels: the Gateway refuses to buy a box that would take the shipment above it. It changes only the multi-package call released earlier today.

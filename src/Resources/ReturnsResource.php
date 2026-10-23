@@ -44,6 +44,9 @@ class ReturnsResource
      * workspace's default shipping preset; with no preset the Gateway answers 400
      * `PackageMeasurementsRequired` naming the missing fields.
      *
+     * Return labels cannot carry HAZMAT yet: send `HazmatClassification::None` or leave
+     * `hazmatClassification` out. The Gateway refuses any other class with 400 `HazmatNotSupported`.
+     *
      * For backward compatibility the argument may also be a `HazmatClassification` (declares what the
      * return holds) or null; both send no package, so they only work for a workspace with a preset.
      *
