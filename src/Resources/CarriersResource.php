@@ -9,7 +9,11 @@ use FlexOps\Carriers\DhlResource;
 
 /**
  * Carrier-specific calls through the Gateway's legacy ApiProxy route (sunset 2027-06-30).
- * Lookups (GET) work with an API key. The writes are deprecated and need a user token
+ * Lookups (GET) work with an API key that has the permission for the data they read: address,
+ * ZIP, city, location, service point and reference lookups require `shipping:read`; tracking and
+ * proof of delivery require `tracking:read`; delivery standards, rates and products require
+ * `rates:read`. A key without the permission gets 403 API_KEY_SCOPE_REQUIRED; keys created with
+ * the default permissions have all three. The writes are deprecated and need a user token
  * (`auth->login()`): API keys get 403 API_KEY_SCOPE_REQUIRED. Use `shipping`, `pickups` and
  * `scanForms` where they cover the call. The proxy's label-generation routes are closed (410).
  */
