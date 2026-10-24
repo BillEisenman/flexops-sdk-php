@@ -8,10 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Docs: `scanForms->create()` documents the Gateway's SCAN form request: `trackingNumbers`, `manifestDate`
+  (`YYYY-MM-DD`), `requestId`, `originPostalCode` and `warehouseId`. Live creation needs `manifestDate`: without it the
+  Gateway answers 400 `Choose the label mailing date.`
+- Docs: `pickups->schedule()`/`cancel()` and `scanForms->create()` need `shipping:write` with an API key, and the
+  public demo keys cannot use them. `rules->test()` needs `shipping:read`. Shipping rule changes (`rules->create()`,
+  `update()`, `delete()`, `reorder()`) and member changes (`workspaces->inviteMember()`, `removeMember()`,
+  `updateMemberRole()`) are for signed-in users only: API keys get 403 `SIGNED_IN_USER_REQUIRED`.
+- `HttpClient::uuid4()` is public, so resources generate IDs the same way as Idempotency-Keys.
 - Docs: `shipping->createBatch()`, `shipping->previewBatch()` and `returns->generateLabel()` now say that
   `hazmatClassification` accepts only `HazmatClassification::None` (0) or nothing; the Gateway refuses any other
   class with 400 `HazmatNotSupported`. The batch note had drifted above `createMultiPackage()` and now sits on the
   batch methods. No behavior change.
+
+### Fixed
+- `scanForms->create()` sends a `requestId`: yours, or a UUID generated for the call and sent on every retry of it.
+  Before, it sent none unless you added one, so the Gateway gave each attempt a new ID and a retry after a lost
+  response could create a second form. Repeating a request with the same `requestId` returns the same form; reusing
+  it with different inputs is 409.
 
 ## [2.2.0] - 2026-10-22
 
