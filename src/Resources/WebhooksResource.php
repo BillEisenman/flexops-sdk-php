@@ -5,10 +5,30 @@ use FlexOps\FlexOpsWebhookSignatureError;
 use FlexOps\HttpClient;
 use FlexOps\WebhookEventType;
 
+/**
+ * Webhook subscription management and signature verification.
+ *
+ * Every method that calls the Gateway needs a signed-in user's access token (the `accessToken`
+ * config key, FlexOps::setAccessToken() or `$client->auth->login()`). The Gateway refuses API keys on
+ * every webhook route, reads included, with 403 `SIGNED_IN_USER_REQUIRED`, whatever the key's scopes;
+ * the SDK throws FlexOpsError with that `errorCode`. Reads are refused too because webhook delivery
+ * logs carry each delivery's payload (order and customer data). A client with an API key sends the
+ * key even when an access token is also set, so call these methods from a client created without
+ * `apiKey`. verifySignature() and verifySignatureOrFail() make no request and need no credentials.
+ */
 class WebhooksResource
 {
     public function __construct(private readonly HttpClient $http, private readonly \Closure $getWsId) {}
 
+    /**
+     * Lists the workspace's webhook subscriptions.
+     *
+     * Needs a signed-in user's access token. Reads are signed-in only, like the writes, because
+     * webhook delivery logs carry each delivery's payload (order and customer data).
+     *
+     * @throws \FlexOps\FlexOpsError 403 with errorCode `SIGNED_IN_USER_REQUIRED` when the client
+     *                               authenticates with an API key.
+     */
     public function list(): mixed { return $this->http->get($this->wsPath() . '/webhooks'); }
 
     /**
@@ -27,11 +47,15 @@ class WebhooksResource
      * at the top level, where earlier releases returned them. A body that is already wrapped is
      * returned unchanged.
      *
+     * Needs a signed-in user's access token.
+     *
      * @param array{url: string, description?: string, events?: list<WebhookEventType|string>, eventTypes?: string} $request
      *
      * @throws \InvalidArgumentException `events` is empty, is not a list, names an event FlexOps never
      *                                   sends (such as `label.created`), or is given with `eventTypes`.
      *                                   No request is sent.
+     * @throws \FlexOps\FlexOpsError 403 with errorCode `SIGNED_IN_USER_REQUIRED` when the client
+     *                               authenticates with an API key.
      */
     public function create(array $request): mixed
     {
@@ -49,16 +73,55 @@ class WebhooksResource
      * a list of WebhookEventType cases (or their exact names) that replaces the subscribed events
      * and is sent as `eventTypes`. Leave `events` out to keep the current events.
      *
+     * Needs a signed-in user's access token.
+     *
      * @param array{url?: string, description?: string, status?: string, events?: list<WebhookEventType|string>, eventTypes?: string} $data
      *
      * @throws \InvalidArgumentException As for create(). No request is sent.
+     * @throws \FlexOps\FlexOpsError 403 with errorCode `SIGNED_IN_USER_REQUIRED` when the client
+     *                               authenticates with an API key.
      */
     public function update(string $webhookId, array $data): mixed { return $this->http->put($this->wsPath() . "/webhooks/{$webhookId}", self::toWireRequest($data)); }
 
+    /**
+     * Deletes a webhook subscription.
+     *
+     * Needs a signed-in user's access token.
+     *
+     * @throws \FlexOps\FlexOpsError 403 with errorCode `SIGNED_IN_USER_REQUIRED` when the client
+     *                               authenticates with an API key.
+     */
     public function delete(string $webhookId): mixed { return $this->http->delete($this->wsPath() . "/webhooks/{$webhookId}"); }
+
+    /**
+     * Rotates the subscription's signing secret.
+     *
+     * Needs a signed-in user's access token.
+     *
+     * @throws \FlexOps\FlexOpsError 403 with errorCode `SIGNED_IN_USER_REQUIRED` when the client
+     *                               authenticates with an API key.
+     */
     public function rotateSecret(string $webhookId): mixed { return $this->http->post($this->wsPath() . "/webhooks/{$webhookId}/rotate-secret"); }
+
+    /**
+     * Lists the subscription's delivery logs.
+     *
+     * Needs a signed-in user's access token. Reads are signed-in only, like the writes, because
+     * webhook delivery logs carry each delivery's payload (order and customer data).
+     *
+     * @throws \FlexOps\FlexOpsError 403 with errorCode `SIGNED_IN_USER_REQUIRED` when the client
+     *                               authenticates with an API key.
+     */
     public function listDeliveryLogs(string $webhookId): mixed { return $this->http->get($this->wsPath() . "/webhooks/{$webhookId}/deliveries"); }
-    /** Sends a test event (`X-FlexOps-Event: test`) to the subscription's URL. */
+
+    /**
+     * Sends a test event (`X-FlexOps-Event: test`) to the subscription's URL.
+     *
+     * Needs a signed-in user's access token.
+     *
+     * @throws \FlexOps\FlexOpsError 403 with errorCode `SIGNED_IN_USER_REQUIRED` when the client
+     *                               authenticates with an API key.
+     */
     public function test(string $webhookId): mixed { return $this->http->post($this->wsPath() . "/webhooks/{$webhookId}/test"); }
 
     /** Headers FlexOps sends with every webhook delivery. */

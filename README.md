@@ -173,8 +173,15 @@ A successful response with no body (204) returns `null`.
 
 ## Webhook subscriptions
 
+Managing webhooks needs a signed-in user's access token. The Gateway refuses API keys on every webhook route, reads included (`list()` and `listDeliveryLogs()` as well as `create()`, `update()`, `delete()`, `rotateSecret()` and `test()`), with 403 `SIGNED_IN_USER_REQUIRED`, whatever the key's scopes; the SDK throws `FlexOpsError` with that `errorCode`. Reads are refused too because webhook delivery logs carry each delivery's payload (order and customer data). A client with an API key sends the key even when an access token is also set, so use a client created without `apiKey`. Verifying deliveries (below) makes no request and needs no credentials.
+
 ```php
+use FlexOps\FlexOps;
 use FlexOps\WebhookEventType;
+
+// Sign in as a user (or pass 'accessToken'); an API key gets 403 SIGNED_IN_USER_REQUIRED here.
+$client = new FlexOps(['workspaceId' => 'your-workspace-id']);
+$client->auth->login('user@example.com', 'password');
 
 // Leave 'events' out to receive every event.
 $webhook = $client->webhooks->create([
