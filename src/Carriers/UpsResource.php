@@ -3,6 +3,9 @@ namespace FlexOps\Carriers;
 
 use FlexOps\HttpClient;
 
+/**
+ * UPS through the legacy ApiProxy route. With an API key, track() requires `tracking:read`.
+ */
 class UpsResource
 {
     private const P = '/api/ApiProxy';

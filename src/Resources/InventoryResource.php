@@ -3,6 +3,14 @@ namespace FlexOps\Resources;
 
 use FlexOps\HttpClient;
 
+/**
+ * Read-only inventory lookups through the legacy ApiProxy route
+ * (`/api/ApiProxy/api/v1/Inventory/...`).
+ *
+ * With an API key, every method requires the `inventory:read` permission; a key without it gets
+ * 403 API_KEY_SCOPE_REQUIRED. Keys created with the default permissions include `inventory:read`.
+ * The proxy refuses writes from API keys.
+ */
 class InventoryResource
 {
     private const P = '/api/ApiProxy';
