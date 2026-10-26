@@ -108,7 +108,10 @@ $client = new FlexOps([
 `$client->carriers` (USPS, UPS, FedEx, DHL) goes through the Gateway's legacy ApiProxy route,
 which is sunset on 2027-06-30.
 
-- Lookups (GET), such as the ones below, work with an API key.
+- Lookups (GET), such as the ones below, work with an API key that has the permission for the
+  data: `shipping:read` for address, ZIP, city, location, service point and reference lookups;
+  `tracking:read` for tracking and proof of delivery; `rates:read` for delivery standards, rates and
+  products. Without it the Gateway returns 403 `API_KEY_SCOPE_REQUIRED`.
 - The writes (rates by POST, pickups, voids, freight, documents) are `@deprecated` and need a user
   token (`$client->auth->login()`): API keys get 403 `API_KEY_SCOPE_REQUIRED`. They stop working when
   the proxy is retired.
@@ -291,9 +294,9 @@ Use a `test_...` key instead of `live_...` to hit the sandbox environment; mock 
 | `$client->wallet` | Workspace wallet balance |
 | `$client->insurance` | Quotes, policies, claims |
 | `$client->returns` | RMAs (create, read, list), return labels, receiving, received returns |
-| `$client->analytics` | Shipments, orders, carrier performance |
-| `$client->orders` | Order lookups |
-| `$client->inventory` | Warehouse inventory lookups |
+| `$client->analytics` | Shipments, orders, carrier performance (API keys need each method's read permission) |
+| `$client->orders` | Order lookups (API keys need `orders:read`) |
+| `$client->inventory` | Warehouse inventory lookups (API keys need `inventory:read`) |
 | `$client->pickups` | Carrier pickup scheduling |
 | `$client->scanForms` | USPS scan forms |
 | `$client->rules` | Shipping automation rules, dry-run tests |
@@ -302,6 +305,12 @@ Use a `test_...` key instead of `live_...` to hit the sandbox environment; mock 
 | `$client->recurringShipments` | Scheduled recurring shipments |
 | `$client->reportSchedules` | Scheduled report delivery by email |
 | `$client->emailTemplates` | Branded shipment-tracking email templates |
+
+`analytics`, `orders` and `inventory` read through the legacy ApiProxy route. With an API key they
+need the permission for the data they read: `orders:read` for `orders`, `inventory:read` for
+`inventory`, and for `analytics` the permission named on each method (`shipping:read`,
+`inventory:read`, `orders:read` or `returns:read`). A key without it gets 403
+`API_KEY_SCOPE_REQUIRED`. Keys created with the default permissions have all of these.
 
 API keys, wallet funding and account management live in the FlexOps portals; 2.0 removed them
 from the SDK. See the [CHANGELOG](CHANGELOG.md) for the full list.

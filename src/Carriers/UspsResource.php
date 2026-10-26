@@ -3,6 +3,11 @@ namespace FlexOps\Carriers;
 
 use FlexOps\HttpClient;
 
+/**
+ * USPS through the legacy ApiProxy route. With an API key, the address, ZIP, city and location
+ * lookups require `shipping:read`, tracking requires `tracking:read` and delivery standards require
+ * `rates:read`.
+ */
 class UspsResource
 {
     private const P = '/api/ApiProxy';
