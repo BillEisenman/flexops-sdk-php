@@ -114,6 +114,33 @@ class GatewayAlignmentTest extends TestCase
         ], array_map(self::call(...), $mock->requests));
     }
 
+    public function testScanFormCreateSendsTheGatewayFieldNamesAndTheCallersRequestId(): void
+    {
+        ['client' => $client, 'mock' => $mock] = TestHelper::createClient();
+        $request = ['trackingNumbers' => ['9400111899223456789014'], 'manifestDate' => '2026-09-08',
+            'requestId' => 'req-1', 'originPostalCode' => '10001', 'warehouseId' => 7];
+
+        $client->scanForms->create($request);
+
+        $this->assertSame([['POST', self::WS . '/scan-forms', $request]], array_map(self::call(...), $mock->requests));
+    }
+
+    public function testScanFormCreateGeneratesARequestIdPerCall(): void
+    {
+        ['client' => $client, 'mock' => $mock] = TestHelper::createClient();
+
+        $client->scanForms->create(['trackingNumbers' => ['9400'], 'manifestDate' => '2026-09-08']);
+        $client->scanForms->create(['trackingNumbers' => ['9400'], 'manifestDate' => '2026-09-08', 'requestId' => null]);
+
+        $ids = array_map(fn ($r) => $r['body']['requestId'] ?? null, $mock->requests);
+        $this->assertCount(2, $ids);
+        foreach ($ids as $id) {
+            $this->assertMatchesRegularExpression('/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/', (string) $id);
+        }
+        $this->assertNotSame($ids[0], $ids[1]);
+        $this->assertSame(['trackingNumbers', 'manifestDate', 'requestId'], array_keys($mock->requests[0]['body']));
+    }
+
     public function testPickupsUseTheScheduledListAndCarrierCode(): void
     {
         ['client' => $client, 'mock' => $mock] = TestHelper::createClient();

@@ -270,7 +270,8 @@ class HttpClient
     }
 
     /** A random (version 4) UUID from random_bytes(). */
-    private static function uuid4(): string
+    /** A random UUID version 4. */
+    public static function uuid4(): string
     {
         $bytes = random_bytes(16);
         $bytes[6] = chr((ord($bytes[6]) & 0x0f) | 0x40);

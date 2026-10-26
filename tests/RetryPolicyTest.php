@@ -40,6 +40,19 @@ class RetryPolicyTest extends TestCase
         $this->assertSame($keys[0], $keys[1]);
     }
 
+    public function testAScanFormSendsOneRequestIdOnEveryAttempt(): void
+    {
+        ['client' => $client, 'mock' => $mock] = TestHelper::createClient();
+        $mock->enqueueError(503, 'Unavailable')->enqueueJson(['success' => true]);
+
+        $client->scanForms->create(['trackingNumbers' => ['9400'], 'manifestDate' => '2026-09-08']);
+
+        $ids = array_map(fn ($r) => $r['body']['requestId'] ?? null, $mock->requests);
+        $this->assertCount(2, $ids);
+        $this->assertMatchesRegularExpression(self::UUID_V4, (string) $ids[0]);
+        $this->assertSame($ids[0], $ids[1]);
+    }
+
     public function testPurchasesSendTheCallersKeyOnEveryAttempt(): void
     {
         ['client' => $client, 'mock' => $mock] = TestHelper::createClient();
