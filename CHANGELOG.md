@@ -7,7 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `FlexOps\ScanFormState` (`Created`, `OutcomeUnknown`) with `isCreated($form)` and `pdfBytes($form)`, which decodes a
+  form's base64 `scanFormImage` (null for sandbox forms and unresolved operations).
+
 ### Changed
+- Docs: `$client->scanForms` documents the form the Gateway returns in `data` (its ScanFormDto) as an array shape:
+  `scanFormId`, `state`, `originPostalCode`, `trackingNumbers`, `createdAtUtc`, `scanFormImage`, `manifestNumber`,
+  `manifestDate`, `packageCount`, `statusMessage`, `success`, `errorMessage` and `isSandbox`, and that `create()`
+  throws `FlexOpsError` with status 409 when the `requestId` was used with different inputs, when the packages already
+  belong to a manifest, or when an operation needs review. These are not retried. Replies are unchanged arrays.
 - Docs: `scanForms->create()` documents the Gateway's SCAN form request: `trackingNumbers`, `manifestDate`
   (`YYYY-MM-DD`), `requestId`, `originPostalCode` and `warehouseId`. Live creation needs `manifestDate`: without it the
   Gateway answers 400 `Choose the label mailing date.`
