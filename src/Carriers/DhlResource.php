@@ -3,6 +3,11 @@ namespace FlexOps\Carriers;
 
 use FlexOps\HttpClient;
 
+/**
+ * DHL through the legacy ApiProxy route. With an API key, address validation, service points and
+ * reference data require `shipping:read`; tracking and proof of delivery require `tracking:read`;
+ * rates and products require `rates:read`.
+ */
 class DhlResource
 {
     private const P = '/api/ApiProxy';

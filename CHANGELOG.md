@@ -7,7 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `FlexOps\ScanFormState` (`Created`, `OutcomeUnknown`) with `isCreated($form)` and `pdfBytes($form)`, which decodes a
+  form's base64 `scanFormImage` (null for sandbox forms and unresolved operations).
+
 ### Changed
+- Docs: `$client->scanForms` documents the form the Gateway returns in `data` (its ScanFormDto) as an array shape:
+  `scanFormId`, `state`, `originPostalCode`, `trackingNumbers`, `createdAtUtc`, `scanFormImage`, `manifestNumber`,
+  `manifestDate`, `packageCount`, `statusMessage`, `success`, `errorMessage` and `isSandbox`, and that `create()`
+  throws `FlexOpsError` with status 409 when the `requestId` was used with different inputs, when the packages already
+  belong to a manifest, or when an operation needs review. These are not retried. Replies are unchanged arrays.
+- Docs: `scanForms->create()` documents the Gateway's SCAN form request: `trackingNumbers`, `manifestDate`
+  (`YYYY-MM-DD`), `requestId`, `originPostalCode` and `warehouseId`. Live creation needs `manifestDate`: without it the
+  Gateway answers 400 `Choose the label mailing date.`
+- Docs: `pickups->schedule()`/`cancel()` and `scanForms->create()` need `shipping:write` with an API key, and the
+  public demo keys cannot use them. `rules->test()` needs `shipping:read`. Shipping rule changes (`rules->create()`,
+  `update()`, `delete()`, `reorder()`) and member changes (`workspaces->inviteMember()`, `removeMember()`,
+  `updateMemberRole()`) are for signed-in users only: API keys get 403 `SIGNED_IN_USER_REQUIRED`.
+- `HttpClient::uuid4()` is public, so resources generate IDs the same way as Idempotency-Keys.
 - Docs: `shipping->createBatch()`, `shipping->previewBatch()` and `returns->generateLabel()` now say that
   `hazmatClassification` accepts only `HazmatClassification::None` (0) or nothing; the Gateway refuses any other
   class with 400 `HazmatNotSupported`. The batch note had drifted above `createMultiPackage()` and now sits on the
@@ -19,6 +36,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   logs carry each delivery's payload (order and customer data). A client with an API key sends the key even when an
   access token is set. The README webhook example now signs in first. `verifySignature()` needs no credentials. No
   behavior change.
+
+### Fixed
+- `scanForms->create()` sends a `requestId`: yours, or a UUID generated for the call and sent on every retry of it.
+  Before, it sent none unless you added one, so the Gateway gave each attempt a new ID and a retry after a lost
+  response could create a second form. Repeating a request with the same `requestId` returns the same form; reusing
+  it with different inputs is 409.
 
 ## [2.2.0] - 2026-10-22
 

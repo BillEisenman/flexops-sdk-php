@@ -9,6 +9,8 @@ class PickupsResource
     public function __construct(private readonly HttpClient $http, private readonly \Closure $getWsId) {}
 
     /**
+     * Schedules a carrier pickup. API keys need `shipping:write`; the public demo keys are refused.
+     *
      * $request is the Gateway SchedulePickupRequest: `carrierCode`, `pickupDate`, `street`, `city`,
      * `state`, `postalCode` and `packageCount` (required), plus optional `country` (default US),
      * `totalWeightOz`, `specialInstructions`, `readyTime`, `closeTime`, `contactName` and `contactPhone`.
@@ -20,6 +22,7 @@ class PickupsResource
     {
         return $this->http->get($this->wsPath() . '/pickups/' . rawurlencode($pickupId), ['carrierCode' => $carrierCode]);
     }
+    /** Cancels a scheduled pickup. API keys need `shipping:write`; the public demo keys are refused. */
     public function cancel(string $pickupId, string $carrierCode = 'usps'): mixed
     {
         return $this->http->delete($this->wsPath() . '/pickups/' . rawurlencode($pickupId) . '?carrierCode=' . rawurlencode($carrierCode));

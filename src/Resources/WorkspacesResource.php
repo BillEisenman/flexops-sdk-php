@@ -16,15 +16,20 @@ class WorkspacesResource
      * Invites a member. $role is a WorkspaceRole, its number, or its name ("Admin"); it is sent as
      * the Gateway number. There is no default: the Gateway would read a missing role as Owner.
      *
+     * Signed-in users only: API keys get 403 `SIGNED_IN_USER_REQUIRED`, whatever their scopes.
+     *
      * @throws \InvalidArgumentException $role names no role. No request is sent.
      */
     public function inviteMember(string $email, WorkspaceRole|int|string $role): mixed
     {
         return $this->http->post($this->wsPath() . '/members/invite', ['email' => $email, 'role' => WorkspaceRole::parse($role)->value]);
     }
+    /** Signed-in users only: API keys get 403 `SIGNED_IN_USER_REQUIRED`, whatever their scopes. */
     public function removeMember(string $userId): mixed { return $this->http->delete($this->wsPath() . "/members/{$userId}"); }
     /**
      * Changes a member's role, sent as the Gateway `newRole` number.
+     *
+     * Signed-in users only: API keys get 403 `SIGNED_IN_USER_REQUIRED`, whatever their scopes.
      *
      * @throws \InvalidArgumentException $role names no role. No request is sent.
      */
