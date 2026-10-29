@@ -315,6 +315,24 @@ class GatewayAlignmentTest extends TestCase
         }
     }
 
+    public function testUspsCancelsNameWhatTheyCancel(): void
+    {
+        ['client' => $client, 'mock' => $mock] = TestHelper::createClient(apiKey: null, accessToken: 'user-token');
+        $client->carriers->usps->cancelPickup('WTC 123');
+        $client->carriers->usps->cancelDomesticLabel('9400111899223456789012');
+        $client->carriers->usps->cancelInternationalLabel('LZ123456789US');
+
+        $this->assertSame([
+            ['DELETE', 'http://localhost/api/ApiProxy/api/v3/CarrierPickup/cancelUspsCarrierPickupSchedule?confirmationNumber=WTC+123', null],
+            ['DELETE', 'http://localhost/api/ApiProxy/api/v3/Shipping/cancelUspsDomesticShipmentLabel?trackingNumber=9400111899223456789012', null],
+            ['DELETE', 'http://localhost/api/ApiProxy/api/v3/Shipping/cancelUspsInternationalShipmentLabel?internationalTrackingNumber=LZ123456789US', null],
+        ], array_map(self::call(...), $mock->requests));
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('confirmationNumber is required.');
+        $client->carriers->usps->cancelPickup(' ');
+    }
+
     public function testDeprecatedCarrierWritesUseTheLegacyProxyWithAnIdempotencyKey(): void
     {
         ['client' => $client, 'mock' => $mock] = TestHelper::createClient(apiKey: null, accessToken: 'user-token');

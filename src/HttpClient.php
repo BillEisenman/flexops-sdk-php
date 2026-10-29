@@ -79,9 +79,9 @@ class HttpClient
         return $this->request('PATCH', $path, body: $body);
     }
 
-    public function delete(string $path): mixed
+    public function delete(string $path, ?array $query = null): mixed
     {
-        return $this->request('DELETE', $path);
+        return $this->request('DELETE', $path, query: $query);
     }
 
     /**

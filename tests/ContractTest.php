@@ -102,8 +102,13 @@ class ContractTest extends TestCase
         $calls = self::explicitCalls();
         foreach (self::DEPRECATED_PROXY_WRITES as $name) {
             [, $carrier, $method] = explode('.', $name);
-            $arity = (new \ReflectionMethod(self::carrierClass($carrier), $method))->getNumberOfRequiredParameters();
-            $calls[$name] = fn (FlexOps $c) => $c->carriers->{$carrier}->{$method}(...array_fill(0, $arity, ['dummy' => true]));
+            $args = [];
+            foreach ((new \ReflectionMethod(self::carrierClass($carrier), $method))->getParameters() as $parameter) {
+                if (!$parameter->isOptional()) {
+                    $args[] = (string) $parameter->getType() === 'string' ? '1' : ['dummy' => true];
+                }
+            }
+            $calls[$name] = fn (FlexOps $c) => $c->carriers->{$carrier}->{$method}(...$args);
         }
         return $calls;
     }
