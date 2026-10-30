@@ -7,11 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-10-30
+
 ### Added
 - `FlexOps\ScanFormState` (`Created`, `OutcomeUnknown`) with `isCreated($form)` and `pdfBytes($form)`, which decodes a
   form's base64 `scanFormImage` (null for sandbox forms and unresolved operations).
 
 ### Changed
+- The Gateway previews sandbox labels too: a `test_` key now needs `maximumPostageAmount`, and the label comes from the approval.
 - Docs: `$client->scanForms` documents the form the Gateway returns in `data` (its ScanFormDto) as an array shape:
   `scanFormId`, `state`, `originPostalCode`, `trackingNumbers`, `createdAtUtc`, `scanFormImage`, `manifestNumber`,
   `manifestDate`, `packageCount`, `statusMessage`, `success`, `errorMessage` and `isSandbox`, and that `create()`
